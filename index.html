@@ -1,0 +1,1976 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RunRuun GPX Editor - 실제 도로 중심선 기반 인터랙티브 GPX 편집기</title>
+  <meta name="description" content="OpenStreetMap과 OSRM 도로망 매칭 엔진을 활용한 마라톤 및 트레일러닝 GPX 코스 정밀 편집 웹 도구">
+
+  <!-- Google Fonts: Inter & Pretendard -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-surface: #1e293b;
+      --bg-surface-elevated: #334155;
+      --border-color: rgba(255, 255, 255, 0.12);
+      --primary: #10b981;
+      --primary-hover: #059669;
+      --accent-orange: #f59e0b;
+      --accent-blue: #38bdf8;
+      --accent-purple: #a855f7;
+      --accent-red: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --glass-bg: rgba(30, 41, 59, 0.85);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --sidebar-width: 380px;
+      --bottom-panel-height: 200px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    header {
+      height: 56px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 1000;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      color: #fff;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+    }
+
+    .btn:hover:not(:disabled) {
+      filter: brightness(1.15);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn-accent {
+      background: #3b82f6;
+      color: #ffffff;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    /* Main Workspace Layout */
+    .app-main {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: Controls & Tools */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 500;
+      overflow-y: auto;
+      flex-shrink: 0;
+      transition: transform 0.25s ease;
+    }
+
+    .sidebar-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .stat-value {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .stat-diff {
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    .diff-plus { color: #f87171; }
+    .diff-minus { color: #34d399; }
+    .diff-equal { color: var(--text-dim); }
+
+    /* Tool Mode Tabs */
+    .mode-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .mode-tab-btn {
+      padding: 8px 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+
+    .mode-tab-btn.active {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--primary);
+      color: #34d399;
+    }
+
+    .mode-tab-btn i {
+      font-size: 1rem;
+    }
+
+    .tool-description {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      background: rgba(15, 23, 42, 0.4);
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      border-left: 3px solid var(--accent-blue);
+    }
+
+    /* Point Info Form */
+    .form-group {
+      margin-bottom: 10px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .form-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .form-input {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: var(--text-main);
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .form-input:focus {
+      border-color: var(--primary);
+    }
+
+    /* Map & Center Workspace */
+    .map-container-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      height: 100%;
+    }
+
+    #map {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: #0b0f19;
+      z-index: 10;
+    }
+
+    /* Floating Map HUD */
+    .map-floating-bar {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 400;
+      display: flex;
+      gap: 8px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(8px);
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--glass-border);
+    }
+
+    .map-style-select {
+      background: rgba(15, 23, 42, 0.8);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      outline: none;
+    }
+
+    /* Bottom Elevation Panel */
+    .bottom-panel {
+      height: var(--bottom-panel-height);
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 450;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .bottom-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 14px;
+      background: rgba(15, 23, 42, 0.5);
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .chart-canvas-container {
+      flex: 1;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      padding: 6px 12px 10px 12px;
+    }
+
+    #elevationChartCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Modal / Dialog */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 520px;
+      padding: 20px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .modal-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .modal-body {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 3000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #ffffff;
+      background: #1e293b;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+      border-left: 4px solid var(--primary);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s ease;
+      pointer-events: auto;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.toast-error {
+      border-left-color: var(--accent-red);
+    }
+
+    .toast.toast-info {
+      border-left-color: var(--accent-blue);
+    }
+
+    /* Legend Overlay */
+    .map-legend {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      z-index: 400;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .legend-line {
+      width: 20px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    .legend-line.orig {
+      background: #a855f7;
+      border-top: 1px dashed #c084fc;
+    }
+
+    .legend-line.mod {
+      background: #10b981;
+    }
+
+    .legend-line.match-preview {
+      background: #38bdf8;
+      border-top: 2px dashed #38bdf8;
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <i class="fa-solid fa-route" style="color: #10b981;"></i>
+      <span>RunRuun GPX Editor</span>
+      <span class="brand-badge">ROAD MATCHER</span>
+    </div>
+
+    <div class="header-actions">
+      <!-- File Load -->
+      <label class="btn btn-outline" style="cursor: pointer;">
+        <i class="fa-solid fa-folder-open"></i> GPX 불러오기
+        <input type="file" id="gpxFileInput" accept=".gpx" style="display: none;">
+      </label>
+
+      <!-- Sample Button -->
+      <button class="btn btn-outline" id="loadSampleBtn" title="테스트용 예제 코스를 불러옵니다">
+        <i class="fa-solid fa-vial"></i> 샘플 코스
+      </button>
+
+      <!-- Undo / Redo -->
+      <button class="btn btn-outline" id="undoBtn" disabled title="실행 취소 (Ctrl+Z)">
+        <i class="fa-solid fa-rotate-left"></i>
+      </button>
+      <button class="btn btn-outline" id="redoBtn" disabled title="다시 실행 (Ctrl+Y)">
+        <i class="fa-solid fa-rotate-right"></i>
+      </button>
+
+      <!-- Fit Bounds -->
+      <button class="btn btn-outline" id="fitBoundsBtn" title="전체 경로가 보이도록 지도 맞춤">
+        <i class="fa-solid fa-expand"></i>
+      </button>
+
+      <!-- Export Button -->
+      <button class="btn btn-primary" id="exportBtn" disabled>
+        <i class="fa-solid fa-file-export"></i> 수정된 GPX 내보내기
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Body -->
+  <div class="app-main">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <!-- Summary Statistics Section -->
+      <div class="sidebar-section">
+        <div class="section-title">
+          <span>코스 요약 및 통계</span>
+          <span id="pointCountBadge" style="font-size: 0.72rem; color: var(--text-dim);">0 pts</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">
+              <span>총 거리</span>
+              <span id="distDiff" class="stat-diff diff-equal">0.0%</span>
+            </div>
+            <div class="stat-value" id="totalDistVal">0.00 <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">km</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">
+              <span>누적 상승고도</span>
+              <span id="eleDiff" class="stat-diff diff-equal">0m</span>
+            </div>
+            <div class="stat-value" id="totalGainVal">0 <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">m</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label"><span>최고 / 최저 고도</span></div>
+            <div class="stat-value" id="minMaxEleVal" style="font-size: 0.95rem;">- / - m</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label"><span>누적 하강고도</span></div>
+            <div class="stat-value" id="totalLossVal" style="font-size: 0.95rem;">0 m</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode Selector Section -->
+      <div class="sidebar-section">
+        <div class="section-title">
+          <span>편집 도구 모드</span>
+        </div>
+        <div class="mode-tabs">
+          <button class="mode-tab-btn active" data-mode="select">
+            <i class="fa-solid fa-hand-pointer"></i>
+            <span>포인트 편집</span>
+          </button>
+          <button class="mode-tab-btn" data-mode="road-snap">
+            <i class="fa-solid fa-road"></i>
+            <span>도로망 매칭</span>
+          </button>
+          <button class="mode-tab-btn" data-mode="reconnect">
+            <i class="fa-solid fa-arrows-split-up-and-left"></i>
+            <span>구간 재연결</span>
+          </button>
+        </div>
+
+        <!-- Mode Descriptions -->
+        <div id="modeHelpText" class="tool-description">
+          지도의 경로 포인트를 클릭하여 선택하고, 드래그하여 좌표를 이동하거나 아래 폼에서 고도와 위치를 직접 수정할 수 있습니다.
+        </div>
+
+        <!-- Mode Specific Actions -->
+        <!-- 1. Point Edit Mode Panel -->
+        <div id="panel-select" class="mode-panel">
+          <div class="section-title" style="margin-top: 6px;">선택된 포인트 정보</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">위도 (Lat)</label>
+              <input type="number" step="0.000001" id="ptLatInput" class="form-input" disabled>
+            </div>
+            <div class="form-group">
+              <label class="form-label">경도 (Lon)</label>
+              <input type="number" step="0.000001" id="ptLonInput" class="form-input" disabled>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">고도 (Elevation, m)</label>
+              <input type="number" step="0.1" id="ptEleInput" class="form-input" disabled>
+            </div>
+            <div class="form-group">
+              <label class="form-label">시작점으로부터 거리</label>
+              <input type="text" id="ptDistInput" class="form-input" disabled value="- km">
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button class="btn btn-outline" id="applyPointEditBtn" style="flex: 1;" disabled>
+              <i class="fa-solid fa-check"></i> 좌표 적용
+            </button>
+            <button class="btn btn-danger" id="deletePointBtn" disabled title="선택한 포인트를 삭제합니다">
+              <i class="fa-solid fa-trash"></i> 삭제
+            </button>
+          </div>
+
+          <div style="margin-top: 18px; border-top: 1px dashed var(--border-color); padding-top: 14px;">
+            <div class="section-title">구간 일괄 삭제 (직선 연결)</div>
+            <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 8px;">
+              현재 선택한 포인트와 두 번째 포인트를 지정하여 사이의 중간 포인트를 모두 삭제합니다.
+            </p>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-outline" id="setRangeStartBtn" style="flex: 1;" disabled>
+                시작점(A) 지정
+              </button>
+              <button class="btn btn-outline" id="setRangeEndBtn" style="flex: 1;" disabled>
+                종료점(B) 지정
+              </button>
+            </div>
+            <div id="rangeSelectionStatus" style="font-size: 0.76rem; color: var(--accent-orange); margin: 6px 0;">
+              시작점과 종료점을 선택해주세요.
+            </div>
+            <button class="btn btn-danger" id="deleteRangeBtn" style="width: 100%; margin-top: 4px;" disabled>
+              <i class="fa-solid fa-scissors"></i> 구간 중간 포인트 삭제
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Road Match Panel -->
+        <div id="panel-road-snap" class="mode-panel" style="display: none;">
+          <div class="form-group">
+            <label class="form-label">매칭 프로파일</label>
+            <select id="osrmProfileSelect" class="form-input">
+              <option value="driving">자동차 / 주도로 중심선 (driving)</option>
+              <option value="cycling">자전거 / 지선 도로망 (cycling)</option>
+              <option value="walking">보행로 / 인도 (walking)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">적용 범위</label>
+            <select id="matchScopeSelect" class="form-input">
+              <option value="range">선택된 구간 (A지점 ~ B지점)</option>
+              <option value="all">전체 코스 도로 중심선 매칭</option>
+            </select>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin: 10px 0;">
+            <i class="fa-solid fa-circle-info" style="color: var(--accent-blue);"></i>
+            OSRM 도로망 Match API를 호출하여 GPS 튐이나 도로 이탈 지점을 실제 도로 중심선(Centerline)에 정확히 밀착시킵니다.
+          </p>
+          <button class="btn btn-primary" id="executeRoadMatchBtn" style="width: 100%;">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> 도로 중심선 매칭 실행
+          </button>
+        </div>
+
+        <!-- 3. Reconnect Panel -->
+        <div id="panel-reconnect" class="mode-panel" style="display: none;">
+          <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
+            잘못 우회했거나 끊어진 두 지점(A와 B)을 선택하면, 실제 도로망을 따라 올바른 경로로 자동 재탐색하여 이어줍니다.
+          </p>
+          <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <button class="btn btn-outline" id="reconnectSetStartBtn" style="flex: 1;" disabled>
+              시작점(A) 설정
+            </button>
+            <button class="btn btn-outline" id="reconnectSetEndBtn" style="flex: 1;" disabled>
+              종료점(B) 설정
+            </button>
+          </div>
+          <div id="reconnectStatusLabel" style="font-size: 0.76rem; color: var(--accent-orange); margin-bottom: 10px;">
+            시작점과 종료점이 모두 지정되어야 합니다.
+          </div>
+          <button class="btn btn-accent" id="previewReconnectBtn" style="width: 100%; margin-bottom: 8px;" disabled>
+            <i class="fa-solid fa-magnifying-glass-location"></i> 도로망 경로 탐색 미리보기
+          </button>
+          <div id="reconnectActionRow" style="display: none; gap: 8px;">
+            <button class="btn btn-primary" id="applyReconnectBtn" style="flex: 1;">
+              <i class="fa-solid fa-check"></i> 새 구간 승인 및 적용
+            </button>
+            <button class="btn btn-outline" id="cancelReconnectBtn">
+              취소
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Instructions & Limitations Notice -->
+      <div class="sidebar-section" style="margin-top: auto; background: rgba(15, 23, 42, 0.4);">
+        <div class="section-title">
+          <span>작업 가이드 및 유의사항</span>
+        </div>
+        <ul style="font-size: 0.75rem; color: var(--text-dim); padding-left: 16px; line-height: 1.5;">
+          <li>도로망이 없는 산길·트레일은 도로 매칭 시 강제로 우회될 수 있으므로 일반 포인트 편집을 권장합니다.</li>
+          <li>수정본과 원본(보라 점선)은 실시간 비교되며 언제든 되돌릴(Ctrl+Z) 수 있습니다.</li>
+          <li>지도의 OpenStreetMap 타일 및 OSRM 서비스 이용 규정을 준수합니다.</li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Map & Canvas Viewport -->
+    <div class="map-container-wrap">
+      <!-- Floating Map Top Controls -->
+      <div class="map-floating-bar">
+        <select id="mapLayerSelect" class="map-style-select">
+          <option value="carto-dark">Carto Dark (다크 테마)</option>
+          <option value="osm-standard">OpenStreetMap Standard</option>
+          <option value="carto-light">Carto Positron (라이트)</option>
+          <option value="opentopo">OpenTopoMap (등고선/지형)</option>
+        </select>
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-main); cursor: pointer; user-select: none;">
+          <input type="checkbox" id="toggleOrigPathCheckbox" checked>
+          <span>원본 경로 표시</span>
+        </label>
+      </div>
+
+      <!-- Map Div -->
+      <div id="map"></div>
+
+      <!-- Map Legend Overlay -->
+      <div class="map-legend">
+        <div class="legend-item" id="legendOrigItem">
+          <div class="legend-line orig"></div>
+          <span>원본 경로 (보라 점선)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-line mod"></div>
+          <span>수정 경로 (에메랄드)</span>
+        </div>
+        <div class="legend-item" id="legendPreviewItem" style="display: none;">
+          <div class="legend-line match-preview"></div>
+          <span>도로망 재연결 미리보기</span>
+        </div>
+      </div>
+
+      <!-- Bottom Elevation Chart Panel -->
+      <div class="bottom-panel">
+        <div class="bottom-panel-header">
+          <span><i class="fa-solid fa-chart-area" style="color: var(--accent-blue); margin-right: 6px;"></i>고도 프로파일 (Elevation Profile)</span>
+          <span id="chartHoverCoord" style="font-family: monospace; color: var(--text-muted);">-</span>
+        </div>
+        <div class="chart-canvas-container">
+          <canvas id="elevationChartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Wrapper -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Application Logic -->
+  <script>
+    /**
+     * RunRuun GPX Editor
+     * 도로 중심선 맞춤 및 정밀 경로 편집 엔진
+     */
+
+    // --- State Management ---
+    const state = {
+      originalPoints: [], // 원본 데이터 보존 [{lat, lon, ele, time, rawXmlNode}]
+      currentPoints: [],  // 현재 수정 중인 데이터 [{lat, lon, ele, time, origIndex}]
+      gpxMetadata: {
+        name: "RunRuun Edited Route",
+        creator: "RunRuun GPX Editor",
+        rawHeader: ""
+      },
+      selectedIndex: null,
+      rangeStart: null,
+      rangeEnd: null,
+      reconnectStart: null,
+      reconnectEnd: null,
+      previewPoints: null, // 도로망 재연결 미리보기 포인트
+      history: [],        // Undo 스택
+      redoStack: [],      // Redo 스택
+      currentMode: 'select', // 'select' | 'road-snap' | 'reconnect'
+      isDragging: false,
+      mapTileLayer: null
+    };
+
+    // --- Haversine 거리 계산 함수 ---
+    function haversineDistance(p1, p2) {
+      const R = 6371000; // 지구 반지름 (m)
+      const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+      const dLon = (p2.lon - p1.lon) * Math.PI / 180;
+      const lat1 = p1.lat * Math.PI / 180;
+      const lat2 = p2.lat * Math.PI / 180;
+
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    // --- 총 거리 및 누적 상승/하강 계산 ---
+    function calculateStats(points) {
+      if (!points || points.length < 2) {
+        return { totalDist: 0, gain: 0, loss: 0, minEle: 0, maxEle: 0, cumDist: [0] };
+      }
+      let totalDist = 0;
+      let gain = 0;
+      let loss = 0;
+      let minEle = points[0].ele ?? 0;
+      let maxEle = points[0].ele ?? 0;
+      const cumDist = [0];
+
+      for (let i = 1; i < points.length; i++) {
+        const d = haversineDistance(points[i-1], points[i]);
+        totalDist += d;
+        cumDist.push(totalDist);
+
+        const e1 = points[i-1].ele ?? 0;
+        const e2 = points[i].ele ?? 0;
+        const diff = e2 - e1;
+        if (diff > 0) gain += diff;
+        else loss += Math.abs(diff);
+
+        if (e2 < minEle) minEle = e2;
+        if (e2 > maxEle) maxEle = e2;
+      }
+      return { totalDist, gain, loss, minEle, maxEle, cumDist };
+    }
+
+    // --- Toast 알림 시스템 ---
+    function showToast(message, type = 'normal') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type === 'error' ? 'toast-error' : type === 'info' ? 'toast-info' : ''}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => toast.classList.add('show'));
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 250);
+      }, 3000);
+    }
+
+    // --- Undo / Redo History 관리 ---
+    function pushHistory(actionName = "작업") {
+      state.history.push({
+        points: JSON.parse(JSON.stringify(state.currentPoints)),
+        actionName
+      });
+      if (state.history.length > 50) state.history.shift();
+      state.redoStack = []; // 새 작업 시 redo 클리어
+      updateUndoRedoButtons();
+    }
+
+    function undo() {
+      if (state.history.length === 0) return;
+      const current = {
+        points: JSON.parse(JSON.stringify(state.currentPoints))
+      };
+      state.redoStack.push(current);
+      const prev = state.history.pop();
+      state.currentPoints = prev.points;
+      state.selectedIndex = null;
+      renderAll();
+      updateUndoRedoButtons();
+      showToast(`실행 취소: ${prev.actionName || '이전 작업'}`, 'info');
+    }
+
+    function redo() {
+      if (state.redoStack.length === 0) return;
+      const next = state.redoStack.pop();
+      state.history.push({
+        points: JSON.parse(JSON.stringify(state.currentPoints)),
+        actionName: "다시 실행"
+      });
+      state.currentPoints = next.points;
+      state.selectedIndex = null;
+      renderAll();
+      updateUndoRedoButtons();
+      showToast('다시 실행 완료', 'info');
+    }
+
+    function updateUndoRedoButtons() {
+      document.getElementById('undoBtn').disabled = state.history.length === 0;
+      document.getElementById('redoBtn').disabled = state.redoStack.length === 0;
+    }
+
+    // --- Map Initialization ---
+    const map = L.map('map', {
+      zoomControl: true,
+      attributionControl: true
+    }).setView([37.5665, 126.9780], 12);
+
+    // 타일 레이어 사전
+    const tileLayers = {
+      'carto-dark': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }),
+      'osm-standard': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }),
+      'carto-light': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }),
+      'opentopo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+        maxZoom: 17
+      })
+    };
+
+    state.mapTileLayer = tileLayers['carto-dark'].addTo(map);
+
+    document.getElementById('mapLayerSelect').addEventListener('change', (e) => {
+      map.removeLayer(state.mapTileLayer);
+      state.mapTileLayer = tileLayers[e.target.value].addTo(map);
+    });
+
+    // 지도 상 경로 레이어 그룹
+    const origPathLayer = L.polyline([], {
+      color: '#a855f7',
+      weight: 3,
+      opacity: 0.6,
+      dashArray: '5, 8'
+    }).addTo(map);
+
+    const modPathLayer = L.polyline([], {
+      color: '#10b981',
+      weight: 4,
+      opacity: 0.95
+    }).addTo(map);
+
+    const previewPathLayer = L.polyline([], {
+      color: '#38bdf8',
+      weight: 4,
+      opacity: 0.9,
+      dashArray: '6, 6'
+    }).addTo(map);
+
+    // 인터랙티브 마커 관리 레이어
+    const markersLayer = L.layerGroup().addTo(map);
+    const hoverIndicatorMarker = L.circleMarker([0, 0], {
+      radius: 7,
+      color: '#38bdf8',
+      fillColor: '#0284c7',
+      fillOpacity: 0.8,
+      weight: 2
+    });
+
+    // --- GPX Parser ---
+    function parseGPX(xmlText) {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+
+      // 파싱 오류 검사
+      const parseError = xmlDoc.querySelector("parsererror");
+      if (parseError) {
+        throw new Error("올바른 GPX XML 파일 형식이 아닙니다.");
+      }
+
+      const nameNode = xmlDoc.querySelector("trk > name") || xmlDoc.querySelector("metadata > name");
+      state.gpxMetadata.name = nameNode ? nameNode.textContent : "RunRuun Route";
+
+      const trkpts = xmlDoc.querySelectorAll("trkpt");
+      if (trkpts.length === 0) {
+        throw new Error("GPX 파일 내에 트랙 포인트(trkpt)가 없습니다.");
+      }
+
+      const points = [];
+      trkpts.forEach((pt, idx) => {
+        const lat = parseFloat(pt.getAttribute("lat"));
+        const lon = parseFloat(pt.getAttribute("lon"));
+        const eleNode = pt.querySelector("ele");
+        const timeNode = pt.querySelector("time");
+        const ele = eleNode ? parseFloat(eleNode.textContent) : 0;
+        const time = timeNode ? timeNode.textContent : null;
+
+        if (!isNaN(lat) && !isNaN(lon)) {
+          points.push({ lat, lon, ele, time, origIndex: idx });
+        }
+      });
+
+      return points;
+    }
+
+    // --- GPX Generator (Serializer) ---
+    function exportToGPXString(points) {
+      let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      gpx += `<gpx version="1.1" creator="RunRuun GPX Editor (https://runruun.com)"\n`;
+      gpx += `  xmlns="http://www.topografix.com/GPX/1/1"\n`;
+      gpx += `  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n`;
+      gpx += `  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">\n`;
+      gpx += `  <metadata>\n`;
+      gpx += `    <name>${escapeXml(state.gpxMetadata.name)}</name>\n`;
+      gpx += `    <time>${new Date().toISOString()}</time>\n`;
+      gpx += `  </metadata>\n`;
+      gpx += `  <trk>\n`;
+      gpx += `    <name>${escapeXml(state.gpxMetadata.name)}</name>\n`;
+      gpx += `    <trkseg>\n`;
+
+      points.forEach(p => {
+        gpx += `      <trkpt lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}">\n`;
+        if (p.ele !== null && !isNaN(p.ele)) {
+          gpx += `        <ele>${p.ele.toFixed(1)}</ele>\n`;
+        }
+        if (p.time) {
+          gpx += `        <time>${p.time}</time>\n`;
+        }
+        gpx += `      </trkpt>\n`;
+      });
+
+      gpx += `    </trkseg>\n`;
+      gpx += `  </trk>\n`;
+      gpx += `</gpx>`;
+      return gpx;
+    }
+
+    function escapeXml(unsafe) {
+      return (unsafe || '').replace(/[<>&'"]/g, c => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+        }
+      });
+    }
+
+    // --- UI Update & Statistics Display ---
+    function updateStatsUI() {
+      const origStats = calculateStats(state.originalPoints);
+      const currStats = calculateStats(state.currentPoints);
+
+      document.getElementById('pointCountBadge').textContent = `${state.currentPoints.length.toLocaleString()} pts`;
+      document.getElementById('totalDistVal').innerHTML = `${(currStats.totalDist / 1000).toFixed(2)} <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">km</span>`;
+      document.getElementById('totalGainVal').innerHTML = `${Math.round(currStats.gain)} <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">m</span>`;
+      document.getElementById('totalLossVal').innerHTML = `${Math.round(currStats.loss)} m`;
+      document.getElementById('minMaxEleVal').innerHTML = `${Math.round(currStats.minEle)} / ${Math.round(currStats.maxEle)} m`;
+
+      // 차이 비교 (Delta)
+      if (origStats.totalDist > 0) {
+        const dDiff = ((currStats.totalDist - origStats.totalDist) / origStats.totalDist) * 100;
+        const distDiffEl = document.getElementById('distDiff');
+        distDiffEl.textContent = `${dDiff >= 0 ? '+' : ''}${dDiff.toFixed(1)}%`;
+        distDiffEl.className = `stat-diff ${dDiff > 0.05 ? 'diff-plus' : dDiff < -0.05 ? 'diff-minus' : 'diff-equal'}`;
+
+        const eDiff = Math.round(currStats.gain - origStats.gain);
+        const eleDiffEl = document.getElementById('eleDiff');
+        eleDiffEl.textContent = `${eDiff >= 0 ? '+' : ''}${eDiff}m`;
+        eleDiffEl.className = `stat-diff ${eDiff > 2 ? 'diff-plus' : eDiff < -2 ? 'diff-minus' : 'diff-equal'}`;
+      }
+
+      document.getElementById('exportBtn').disabled = state.currentPoints.length === 0;
+    }
+
+    // --- Map Rendering ---
+    function renderMap() {
+      // 1. 원본 폴리라인 갱신
+      const origLatLngs = state.originalPoints.map(p => [p.lat, p.lon]);
+      origPathLayer.setLatLngs(origLatLngs);
+
+      // 2. 수정본 폴리라인 갱신
+      const modLatLngs = state.currentPoints.map(p => [p.lat, p.lon]);
+      modPathLayer.setLatLngs(modLatLngs);
+
+      // 3. 재연결 미리보기 갱신
+      if (state.previewPoints && state.previewPoints.length > 0) {
+        previewPathLayer.setLatLngs(state.previewPoints.map(p => [p.lat, p.lon]));
+        document.getElementById('legendPreviewItem').style.display = 'flex';
+      } else {
+        previewPathLayer.setLatLngs([]);
+        document.getElementById('legendPreviewItem').style.display = 'none';
+      }
+
+      // 4. 인터랙티브 마커 갱신 (선택된 포인트 및 주요 제어 포인트)
+      markersLayer.clearLayers();
+
+      // 시작점 및 종료점 마커
+      if (state.currentPoints.length > 0) {
+        const startPt = state.currentPoints[0];
+        const endPt = state.currentPoints[state.currentPoints.length - 1];
+
+        L.circleMarker([startPt.lat, startPt.lon], {
+          radius: 8,
+          color: '#ffffff',
+          fillColor: '#10b981',
+          fillOpacity: 1,
+          weight: 2
+        }).bindTooltip("출발점 (Start)").addTo(markersLayer);
+
+        L.circleMarker([endPt.lat, endPt.lon], {
+          radius: 8,
+          color: '#ffffff',
+          fillColor: '#ef4444',
+          fillOpacity: 1,
+          weight: 2
+        }).bindTooltip("도착점 (Finish)").addTo(markersLayer);
+      }
+
+      // 선택된 포인트 드래그 마커
+      if (state.selectedIndex !== null && state.currentPoints[state.selectedIndex]) {
+        const sel = state.currentPoints[state.selectedIndex];
+        const editMarker = L.marker([sel.lat, sel.lon], {
+          draggable: true,
+          icon: L.divIcon({
+            className: 'custom-drag-marker',
+            html: `<div style="background: #38bdf8; width: 16px; height: 16px; border-radius: 50%; border: 3px solid #ffffff; box-shadow: 0 0 10px rgba(56,189,248,0.8);"></div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })
+        }).addTo(markersLayer);
+
+        editMarker.on('dragstart', () => { state.isDragging = true; });
+        editMarker.on('drag', (e) => {
+          const pos = e.target.getLatLng();
+          document.getElementById('ptLatInput').value = pos.lat.toFixed(6);
+          document.getElementById('ptLonInput').value = pos.lng.toFixed(6);
+        });
+        editMarker.on('dragend', (e) => {
+          state.isDragging = false;
+          const pos = e.target.getLatLng();
+          pushHistory("포인트 위치 드래그 이동");
+          state.currentPoints[state.selectedIndex].lat = pos.lat;
+          state.currentPoints[state.selectedIndex].lon = pos.lng;
+          renderAll();
+          showToast(`포인트 #${state.selectedIndex + 1} 위치 이동 완료`);
+        });
+      }
+
+      // 구간 선택 마커 (A/B 지점)
+      if (state.rangeStart !== null && state.currentPoints[state.rangeStart]) {
+        const pA = state.currentPoints[state.rangeStart];
+        L.circleMarker([pA.lat, pA.lon], {
+          radius: 6,
+          color: '#f59e0b',
+          fillColor: '#d97706',
+          fillOpacity: 1,
+          weight: 2
+        }).bindTooltip(`구간 시작점 (A: #${state.rangeStart + 1})`).addTo(markersLayer);
+      }
+
+      if (state.rangeEnd !== null && state.currentPoints[state.rangeEnd]) {
+        const pB = state.currentPoints[state.rangeEnd];
+        L.circleMarker([pB.lat, pB.lon], {
+          radius: 6,
+          color: '#f59e0b',
+          fillColor: '#b45309',
+          fillOpacity: 1,
+          weight: 2
+        }).bindTooltip(`구간 종료점 (B: #${state.rangeEnd + 1})`).addTo(markersLayer);
+      }
+    }
+
+    // 지도 상 클릭 이벤트: 가장 가까운 경로 포인트 선택
+    map.on('click', (e) => {
+      if (state.currentPoints.length === 0 || state.isDragging) return;
+
+      const clickLat = e.latlng.lat;
+      const clickLon = e.latlng.lng;
+
+      let nearestIdx = 0;
+      let minDist = Infinity;
+
+      state.currentPoints.forEach((p, idx) => {
+        const d = haversineDistance({ lat: clickLat, lon: clickLon }, p);
+        if (d < minDist) {
+          minDist = d;
+          nearestIdx = idx;
+        }
+      });
+
+      // 반경 100m 이내 클릭 시에만 해당 포인트 선택
+      if (minDist < 100) {
+        selectPoint(nearestIdx);
+      } else {
+        // 선택 해제
+        // state.selectedIndex = null;
+        // renderAll();
+      }
+    });
+
+    // 포인트 선택 처리
+    function selectPoint(idx) {
+      state.selectedIndex = idx;
+      const pt = state.currentPoints[idx];
+
+      const latInput = document.getElementById('ptLatInput');
+      const lonInput = document.getElementById('ptLonInput');
+      const eleInput = document.getElementById('ptEleInput');
+      const distInput = document.getElementById('ptDistInput');
+
+      latInput.value = pt.lat.toFixed(6);
+      lonInput.value = pt.lon.toFixed(6);
+      eleInput.value = (pt.ele !== null && !isNaN(pt.ele)) ? pt.ele.toFixed(1) : 0;
+      latInput.disabled = false;
+      lonInput.disabled = false;
+      eleInput.disabled = false;
+
+      document.getElementById('applyPointEditBtn').disabled = false;
+      document.getElementById('deletePointBtn').disabled = false;
+      document.getElementById('setRangeStartBtn').disabled = false;
+      document.getElementById('setRangeEndBtn').disabled = false;
+      document.getElementById('reconnectSetStartBtn').disabled = false;
+      document.getElementById('reconnectSetEndBtn').disabled = false;
+
+      // 누적 거리 계산
+      const stats = calculateStats(state.currentPoints.slice(0, idx + 1));
+      distInput.value = `${(stats.totalDist / 1000).toFixed(2)} km (#${idx + 1})`;
+
+      renderMap();
+      renderElevationChart();
+      showToast(`포인트 #${idx + 1} 선택됨`, 'info');
+    }
+
+    // 포인트 정보 수동 폼 적용
+    document.getElementById('applyPointEditBtn').addEventListener('click', () => {
+      if (state.selectedIndex === null) return;
+      const lat = parseFloat(document.getElementById('ptLatInput').value);
+      const lon = parseFloat(document.getElementById('ptLonInput').value);
+      const ele = parseFloat(document.getElementById('ptEleInput').value);
+
+      if (isNaN(lat) || isNaN(lon) || isNaN(ele)) {
+        showToast("유효한 좌표 및 고도 숫자를 입력해주세요.", "error");
+        return;
+      }
+
+      pushHistory("좌표 및 고도 수동 수정");
+      state.currentPoints[state.selectedIndex].lat = lat;
+      state.currentPoints[state.selectedIndex].lon = lon;
+      state.currentPoints[state.selectedIndex].ele = ele;
+
+      renderAll();
+      showToast("포인트 수정 사항이 적용되었습니다.");
+    });
+
+    // 단일 포인트 삭제
+    document.getElementById('deletePointBtn').addEventListener('click', () => {
+      if (state.selectedIndex === null) return;
+      if (state.currentPoints.length <= 2) {
+        showToast("경로는 최소 2개 이상의 포인트가 유지되어야 합니다.", "error");
+        return;
+      }
+
+      pushHistory(`포인트 #${state.selectedIndex + 1} 삭제`);
+      state.currentPoints.splice(state.selectedIndex, 1);
+      state.selectedIndex = null;
+      document.getElementById('applyPointEditBtn').disabled = true;
+      document.getElementById('deletePointBtn').disabled = true;
+
+      renderAll();
+      showToast("포인트가 삭제되었습니다.");
+    });
+
+    // 구간 선택 버튼 핸들러
+    document.getElementById('setRangeStartBtn').addEventListener('click', () => {
+      if (state.selectedIndex === null) return;
+      state.rangeStart = state.selectedIndex;
+      updateRangeStatusText();
+      renderMap();
+    });
+
+    document.getElementById('setRangeEndBtn').addEventListener('click', () => {
+      if (state.selectedIndex === null) return;
+      state.rangeEnd = state.selectedIndex;
+      updateRangeStatusText();
+      renderMap();
+    });
+
+    function updateRangeStatusText() {
+      const el = document.getElementById('rangeSelectionStatus');
+      const delBtn = document.getElementById('deleteRangeBtn');
+
+      if (state.rangeStart !== null && state.rangeEnd !== null) {
+        const s = Math.min(state.rangeStart, state.rangeEnd);
+        const e = Math.max(state.rangeStart, state.rangeEnd);
+        const count = e - s - 1;
+        el.textContent = `선택 구간: #${s + 1} ~ #${e + 1} (중간 삭제 대상: ${Math.max(0, count)}개)`;
+        delBtn.disabled = count <= 0;
+      } else if (state.rangeStart !== null) {
+        el.textContent = `시작점 A(#${state.rangeStart + 1}) 설정됨. 종료점 B를 지정해주세요.`;
+        delBtn.disabled = true;
+      } else if (state.rangeEnd !== null) {
+        el.textContent = `종료점 B(#${state.rangeEnd + 1}) 설정됨. 시작점 A를 지정해주세요.`;
+        delBtn.disabled = true;
+      } else {
+        el.textContent = "시작점과 종료점을 선택해주세요.";
+        delBtn.disabled = true;
+      }
+    }
+
+    // 구간 중간 포인트 일괄 삭제
+    document.getElementById('deleteRangeBtn').addEventListener('click', () => {
+      if (state.rangeStart === null || state.rangeEnd === null) return;
+      const s = Math.min(state.rangeStart, state.rangeEnd);
+      const e = Math.max(state.rangeStart, state.rangeEnd);
+      const deleteCount = e - s - 1;
+
+      if (deleteCount <= 0) {
+        showToast("삭제할 중간 포인트가 없습니다.", "error");
+        return;
+      }
+
+      pushHistory(`구간 중간 포인트 ${deleteCount}개 일괄 삭제`);
+      // s + 1부터 deleteCount개 삭제
+      state.currentPoints.splice(s + 1, deleteCount);
+
+      state.rangeStart = null;
+      state.rangeEnd = null;
+      state.selectedIndex = null;
+      updateRangeStatusText();
+      renderAll();
+      showToast(`${deleteCount}개의 중간 포인트가 삭제되고 직선으로 연결되었습니다.`);
+    });
+
+    // --- 고도 프로파일 캔버스 렌더러 ---
+    function renderElevationChart() {
+      const canvas = document.getElementById('elevationChartCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const width = rect.width;
+      const height = rect.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      if (state.currentPoints.length < 2) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '12px Inter';
+        ctx.textAlign = 'center';
+        ctx.fillText('GPX 파일이 로드되면 고도 프로파일이 여기에 표시됩니다.', width / 2, height / 2);
+        return;
+      }
+
+      const stats = calculateStats(state.currentPoints);
+      const cumDist = stats.cumDist;
+      const totalDist = stats.totalDist;
+
+      const padLeft = 45;
+      const padRight = 15;
+      const padTop = 15;
+      const padBottom = 25;
+      const plotWidth = width - padLeft - padRight;
+      const plotHeight = height - padTop - padBottom;
+
+      const minEle = Math.floor(stats.minEle / 10) * 10 - 5;
+      const maxEle = Math.ceil(stats.maxEle / 10) * 10 + 10;
+      const eleSpan = Math.max(20, maxEle - minEle);
+
+      // 배경 그리드
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.lineWidth = 1;
+      const gridCount = 4;
+      for (let i = 0; i <= gridCount; i++) {
+        const y = padTop + (plotHeight / gridCount) * i;
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(width - padRight, y);
+        ctx.stroke();
+
+        const eleLabel = Math.round(maxEle - (eleSpan / gridCount) * i);
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px Inter';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${eleLabel}m`, padLeft - 6, y + 3);
+      }
+
+      // 거리 X축 라벨
+      ctx.textAlign = 'center';
+      for (let i = 0; i <= 5; i++) {
+        const frac = i / 5;
+        const x = padLeft + plotWidth * frac;
+        const dKm = ((totalDist * frac) / 1000).toFixed(1);
+        ctx.fillText(`${dKm}km`, x, height - 8);
+      }
+
+      // 프로파일 패스 그리기
+      const getX = (dist) => padLeft + (dist / totalDist) * plotWidth;
+      const getY = (ele) => padTop + (1 - (ele - minEle) / eleSpan) * plotHeight;
+
+      ctx.beginPath();
+      ctx.moveTo(getX(cumDist[0]), getY(state.currentPoints[0].ele || 0));
+
+      for (let i = 1; i < state.currentPoints.length; i++) {
+        ctx.lineTo(getX(cumDist[i]), getY(state.currentPoints[i].ele || 0));
+      }
+
+      // Gradient Fill
+      const gradient = ctx.createLinearGradient(0, padTop, 0, height - padBottom);
+      gradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+      gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.lineTo(getX(totalDist), height - padBottom);
+      ctx.lineTo(getX(0), height - padBottom);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // 선택된 포인트 강조
+      if (state.selectedIndex !== null && state.currentPoints[state.selectedIndex]) {
+        const selDist = cumDist[state.selectedIndex];
+        const selEle = state.currentPoints[state.selectedIndex].ele || 0;
+        const sx = getX(selDist);
+        const sy = getY(selEle);
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(sx, padTop);
+        ctx.lineTo(sx, height - padBottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // 캔버스 인터랙션: 마우스 호버 동기화
+      canvas.onmousemove = (e) => {
+        const cRect = canvas.getBoundingClientRect();
+        const mx = e.clientX - cRect.left;
+        if (mx < padLeft || mx > width - padRight) return;
+
+        const frac = (mx - padLeft) / plotWidth;
+        const targetDist = totalDist * frac;
+
+        // 가장 가까운 거리의 포인트 탐색 (이진 탐색)
+        let low = 0, high = cumDist.length - 1;
+        while (low < high) {
+          const mid = Math.floor((low + high) / 2);
+          if (cumDist[mid] < targetDist) low = mid + 1;
+          else high = mid;
+        }
+
+        const hoverPt = state.currentPoints[low];
+        if (hoverPt) {
+          hoverIndicatorMarker.setLatLng([hoverPt.lat, hoverPt.lon]).addTo(map);
+          document.getElementById('chartHoverCoord').textContent =
+            `#${low + 1} | ${(cumDist[low]/1000).toFixed(2)}km | 고도: ${(hoverPt.ele || 0).toFixed(1)}m | (${hoverPt.lat.toFixed(5)}, ${hoverPt.lon.toFixed(5)})`;
+        }
+      };
+
+      canvas.onmouseleave = () => {
+        hoverIndicatorMarker.remove();
+        document.getElementById('chartHoverCoord').textContent = "-";
+      };
+
+      // 캔버스 클릭 시 해당 포인트 선택
+      canvas.onclick = (e) => {
+        const cRect = canvas.getBoundingClientRect();
+        const mx = e.clientX - cRect.left;
+        if (mx < padLeft || mx > width - padRight) return;
+        const frac = (mx - padLeft) / plotWidth;
+        const targetDist = totalDist * frac;
+
+        let low = 0, high = cumDist.length - 1;
+        while (low < high) {
+          const mid = Math.floor((low + high) / 2);
+          if (cumDist[mid] < targetDist) low = mid + 1;
+          else high = mid;
+        }
+        selectPoint(low);
+      };
+    }
+
+    // --- 전체 화면 및 UI 통합 렌더링 ---
+    function renderAll() {
+      updateStatsUI();
+      renderMap();
+      renderElevationChart();
+    }
+
+    // --- OSRM Match API (도로 중심선 매칭) ---
+    async function matchPointsWithOSRM(pointsToMatch, profile = 'driving') {
+      // OSRM URL 길이 및 점수 제한을 위해 최대 90개 단위로 청크 처리
+      const CHUNK_SIZE = 90;
+      const chunks = [];
+
+      for (let i = 0; i < pointsToMatch.length; i += (CHUNK_SIZE - 1)) {
+        chunks.push(pointsToMatch.slice(i, i + CHUNK_SIZE));
+        if (i + CHUNK_SIZE >= pointsToMatch.length) break;
+      }
+
+      let allMatchedCoords = [];
+
+      for (let c = 0; c < chunks.length; c++) {
+        const chunk = chunks[c];
+        if (chunk.length < 2) continue;
+
+        const coordsStr = chunk.map(p => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
+        const url = `https://router.project-osrm.org/match/v1/${profile}/${coordsStr}?overview=full&geometries=geojson&steps=false`;
+
+        const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!resp.ok) {
+          throw new Error(`OSRM Match 서비스 응답 오류 (HTTP ${resp.status})`);
+        }
+        const data = await resp.json();
+
+        if (data.code !== 'Ok' || !data.matchings || data.matchings.length === 0) {
+          throw new Error(`도로망 매칭 실패: 신뢰도 있는 도로망을 찾지 못했습니다 (${data.code || 'No match'}). 산길/트레일 여부를 확인하세요.`);
+        }
+
+        // 매칭된 지오메트리 추출
+        data.matchings.forEach((m, mIdx) => {
+          if (m.geometry && m.geometry.coordinates) {
+            const coords = m.geometry.coordinates; // [[lon, lat], ...]
+            if (mIdx > 0 && allMatchedCoords.length > 0) {
+              // 중복 시작점 제거
+              allMatchedCoords.push(...coords.slice(1));
+            } else {
+              allMatchedCoords.push(...coords);
+            }
+          }
+        });
+      }
+
+      // 매칭 결과 좌표에 원본 고도 프로파일 선형 보간 적용
+      return interpolateElevations(pointsToMatch, allMatchedCoords);
+    }
+
+    // 고도 선형 보간 (거리 비율 기반)
+    function interpolateElevations(origChunk, newCoords) {
+      const origStats = calculateStats(origChunk);
+      const totalOrigDist = Math.max(1, origStats.totalDist);
+
+      const dummyPts = newCoords.map(c => ({ lat: c[1], lon: c[0] }));
+      const newStats = calculateStats(dummyPts);
+      const totalNewDist = Math.max(1, newStats.totalDist);
+
+      const result = [];
+      for (let i = 0; i < newCoords.length; i++) {
+        const frac = newStats.cumDist[i] / totalNewDist;
+        const targetOrigDist = totalOrigDist * frac;
+
+        // 원본 청크에서 targetOrigDist에 해당하는 고도 탐색
+        let ele = origChunk[0].ele || 0;
+        for (let j = 0; j < origStats.cumDist.length - 1; j++) {
+          if (targetOrigDist >= origStats.cumDist[j] && targetOrigDist <= origStats.cumDist[j+1]) {
+            const segSpan = origStats.cumDist[j+1] - origStats.cumDist[j];
+            const segFrac = segSpan > 0 ? (targetOrigDist - origStats.cumDist[j]) / segSpan : 0;
+            const e1 = origChunk[j].ele || 0;
+            const e2 = origChunk[j+1].ele || 0;
+            ele = e1 + (e2 - e1) * segFrac;
+            break;
+          }
+        }
+
+        result.push({
+          lat: newCoords[i][1],
+          lon: newCoords[i][0],
+          ele: Math.round(ele * 10) / 10
+        });
+      }
+      return result;
+    }
+
+    // 도로 중심선 매칭 실행 버튼 이벤트
+    document.getElementById('executeRoadMatchBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('executeRoadMatchBtn');
+      const profile = document.getElementById('osrmProfileSelect').value;
+      const scope = document.getElementById('matchScopeSelect').value;
+
+      if (state.currentPoints.length < 2) {
+        showToast("먼저 GPX 경로를 불러와주세요.", "error");
+        return;
+      }
+
+      let startIdx = 0;
+      let endIdx = state.currentPoints.length - 1;
+
+      if (scope === 'range') {
+        if (state.rangeStart === null || state.rangeEnd === null) {
+          showToast("구간 매칭을 위해 시작점(A)과 종료점(B)을 먼저 선택해주세요.", "error");
+          return;
+        }
+        startIdx = Math.min(state.rangeStart, state.rangeEnd);
+        endIdx = Math.max(state.rangeStart, state.rangeEnd);
+        if (endIdx - startIdx < 1) {
+          showToast("유효한 구간을 선택해주세요.", "error");
+          return;
+        }
+      }
+
+      const targetSlice = state.currentPoints.slice(startIdx, endIdx + 1);
+      const originalBtnHtml = btn.innerHTML;
+      btn.innerHTML = `<span class="spinner"></span> 도로 매칭 연산 중...`;
+      btn.disabled = true;
+
+      try {
+        const matchedPts = await matchPointsWithOSRM(targetSlice, profile);
+
+        pushHistory(`도로 중심선 매칭 (${scope === 'all' ? '전체' : `#${startIdx+1}~#${endIdx+1}`})`);
+
+        // 기존 배열 교체
+        state.currentPoints.splice(startIdx, targetSlice.length, ...matchedPts);
+        state.selectedIndex = null;
+        renderAll();
+        showToast(`도로 중심선 매칭 완료! (${matchedPts.length}개 도로 노드로 정렬됨)`);
+      } catch (err) {
+        console.error("OSRM Match Error:", err);
+        showToast(err.message, "error");
+      } finally {
+        btn.innerHTML = originalBtnHtml;
+        btn.disabled = false;
+      }
+    });
+
+    // --- 구간 재연결 (OSRM Route API) ---
+    document.getElementById('reconnectSetStartBtn').addEventListener('click', () => {
+      if (state.selectedIndex === null) return;
+      state.reconnectStart = state.selectedIndex;
+      updateReconnectUI();
+      renderMap();
+    });
+
+    document.getElementById('reconnectSetEndBtn').addEventListener('click', () => {
+      if (state.selectedIndex === null) return;
+      state.reconnectEnd = state.selectedIndex;
+      updateReconnectUI();
+      renderMap();
+    });
+
+    function updateReconnectUI() {
+      const lbl = document.getElementById('reconnectStatusLabel');
+      const prevBtn = document.getElementById('previewReconnectBtn');
+
+      if (state.reconnectStart !== null && state.reconnectEnd !== null) {
+        const s = Math.min(state.reconnectStart, state.reconnectEnd);
+        const e = Math.max(state.reconnectStart, state.reconnectEnd);
+        lbl.textContent = `재연결 구간 지정: #${s + 1} → #${e + 1}`;
+        prevBtn.disabled = (e - s) < 1;
+      } else if (state.reconnectStart !== null) {
+        lbl.textContent = `시작점 A(#${state.reconnectStart + 1}) 설정됨. 종료점 B를 지정하세요.`;
+        prevBtn.disabled = true;
+      } else if (state.reconnectEnd !== null) {
+        lbl.textContent = `종료점 B(#${state.reconnectEnd + 1}) 설정됨. 시작점 A를 지정하세요.`;
+        prevBtn.disabled = true;
+      } else {
+        lbl.textContent = "시작점과 종료점이 모두 지정되어야 합니다.";
+        prevBtn.disabled = true;
+      }
+    }
+
+    // 도로망 재연결 탐색 미리보기
+    document.getElementById('previewReconnectBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('previewReconnectBtn');
+      const s = Math.min(state.reconnectStart, state.reconnectEnd);
+      const e = Math.max(state.reconnectStart, state.reconnectEnd);
+
+      const pA = state.currentPoints[s];
+      const pB = state.currentPoints[e];
+
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = `<span class="spinner"></span> 도로망 경로 탐색 중...`;
+      btn.disabled = true;
+
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${pA.lon.toFixed(6)},${pA.lat.toFixed(6)};${pB.lon.toFixed(6)},${pB.lat.toFixed(6)}?overview=full&geometries=geojson`;
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error("OSRM Route 서비스에 접근할 수 없습니다.");
+        const data = await resp.json();
+
+        if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+          throw new Error("두 지점을 잇는 도로망 경로를 찾을 수 없습니다.");
+        }
+
+        const coords = data.routes[0].geometry.coordinates; // [[lon, lat], ...]
+        const sliceOrig = state.currentPoints.slice(s, e + 1);
+        state.previewPoints = interpolateElevations(sliceOrig, coords);
+
+        renderMap();
+        document.getElementById('reconnectActionRow').style.display = 'flex';
+        showToast("신규 도로망 경로가 탐색되었습니다. 지도 상의 하늘색 점선을 확인 후 승인하세요.", "info");
+      } catch (err) {
+        console.error("OSRM Route Error:", err);
+        showToast(err.message, "error");
+      } finally {
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+      }
+    });
+
+    // 재연결 승인 및 적용
+    document.getElementById('applyReconnectBtn').addEventListener('click', () => {
+      if (!state.previewPoints || state.previewPoints.length === 0) return;
+      const s = Math.min(state.reconnectStart, state.reconnectEnd);
+      const e = Math.max(state.reconnectStart, state.reconnectEnd);
+
+      pushHistory(`구간 재연결 (#${s+1} ~ #${e+1})`);
+
+      // 기존 구간을 새 경로로 대체
+      state.currentPoints.splice(s, e - s + 1, ...state.previewPoints);
+      state.previewPoints = null;
+      state.reconnectStart = null;
+      state.reconnectEnd = null;
+      document.getElementById('reconnectActionRow').style.display = 'none';
+      updateReconnectUI();
+      renderAll();
+      showToast("새 도로망 경로가 성공적으로 병합되었습니다.");
+    });
+
+    // 재연결 취소
+    document.getElementById('cancelReconnectBtn').addEventListener('click', () => {
+      state.previewPoints = null;
+      document.getElementById('reconnectActionRow').style.display = 'none';
+      renderMap();
+      showToast("재연결 미리보기가 취소되었습니다.");
+    });
+
+    // --- Mode Tab Switching ---
+    document.querySelectorAll('.mode-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const mode = btn.dataset.mode;
+        state.currentMode = mode;
+
+        document.querySelectorAll('.mode-panel').forEach(p => p.style.display = 'none');
+        document.getElementById(`panel-${mode}`).style.display = 'block';
+
+        const helpEl = document.getElementById('modeHelpText');
+        if (mode === 'select') {
+          helpEl.textContent = "지도의 경로 포인트를 클릭하여 선택하고, 드래그하여 좌표를 이동하거나 아래 폼에서 고도와 위치를 직접 수정할 수 있습니다.";
+        } else if (mode === 'road-snap') {
+          helpEl.textContent = "OSRM Map Matching 엔진을 통해 GPS 수신 불량으로 튀거나 도로를 이탈한 구간을 실제 차도/인도 중심선에 자석처럼 밀착 정렬합니다.";
+        } else if (mode === 'reconnect') {
+          helpEl.textContent = "불필요한 우회 루프나 단절된 두 지점을 지정하여 실제 도로망을 경유하는 최단/최적 코스로 자동 재연결합니다.";
+        }
+      });
+    });
+
+    // --- File Handling & Loading ---
+    const fileInput = document.getElementById('gpxFileInput');
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const points = parseGPX(event.target.result);
+          loadNewPoints(points, file.name.replace('.gpx', ''));
+          showToast(`'${file.name}' 불러오기 완료 (${points.length.toLocaleString()} pts)`);
+        } catch (err) {
+          alert(`GPX 로드 오류: ${err.message}`);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    function loadNewPoints(points, name = "GPX Route") {
+      state.originalPoints = JSON.parse(JSON.stringify(points));
+      state.currentPoints = JSON.parse(JSON.stringify(points));
+      state.gpxMetadata.name = name;
+      state.history = [];
+      state.redoStack = [];
+      state.selectedIndex = null;
+      state.rangeStart = null;
+      state.rangeEnd = null;
+      state.previewPoints = null;
+
+      updateUndoRedoButtons();
+      renderAll();
+
+      if (points.length > 0) {
+        const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
+        map.fitBounds(bounds, { padding: [40, 40] });
+      }
+    }
+
+    // 예제 샘플 코스 로드 (인천 송도/영종도 마라톤 코스 기반 정밀 데모)
+    document.getElementById('loadSampleBtn').addEventListener('click', () => {
+      // 실감나는 인천 청라-영종 주변 샘플 데이터 생성
+      const samplePts = [
+        { lat: 37.493616, lon: 126.496649, ele: 12.0 },
+        { lat: 37.494100, lon: 126.498200, ele: 13.5 },
+        { lat: 37.495200, lon: 126.501500, ele: 14.2 },
+        { lat: 37.496800, lon: 126.506200, ele: 15.0 },
+        { lat: 37.497500, lon: 126.509000, ele: 16.5 },
+        // 의도적인 튐 / 우회 오차 데이터 포함 (도로 중심선 매칭 테스트용)
+        { lat: 37.502000, lon: 126.518000, ele: 18.0 },
+        { lat: 37.504500, lon: 126.525000, ele: 20.0 },
+        { lat: 37.507000, lon: 126.533000, ele: 22.5 },
+        { lat: 37.511000, lon: 126.545000, ele: 25.0 },
+        { lat: 37.518000, lon: 126.565000, ele: 28.0 },
+        { lat: 37.526000, lon: 126.590000, ele: 32.0 },
+        { lat: 37.534000, lon: 126.620000, ele: 26.0 },
+        { lat: 37.541000, lon: 126.645000, ele: 22.0 },
+        { lat: 37.547311, lon: 126.663949, ele: 20.4 }
+      ];
+
+      loadNewPoints(samplePts, "Incheon Marathon Demo");
+      showToast("테스트용 샘플 GPX 코스가 로드되었습니다.");
+    });
+
+    // 드래그 앤 드롭 파일 로드 지원
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.name.toLowerCase().endsWith('.gpx')) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            try {
+              const points = parseGPX(event.target.result);
+              loadNewPoints(points, file.name.replace('.gpx', ''));
+              showToast(`'${file.name}' 드롭 로드 완료 (${points.length.toLocaleString()} pts)`);
+            } catch (err) {
+              alert(`GPX 로드 오류: ${err.message}`);
+            }
+          };
+          reader.readAsText(file);
+        }
+      }
+    });
+
+    // GPX 내보내기 다운로드
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      if (state.currentPoints.length === 0) return;
+      const gpxStr = exportToGPXString(state.currentPoints);
+      const blob = new Blob([gpxStr], { type: 'application/gpx+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${state.gpxMetadata.name || 'edited_route'}_matched.gpx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("수정된 GPX 파일이 다운로드되었습니다!");
+    });
+
+    // 지도 줌 맞춤
+    document.getElementById('fitBoundsBtn').addEventListener('click', () => {
+      if (state.currentPoints.length > 0) {
+        const bounds = L.latLngBounds(state.currentPoints.map(p => [p.lat, p.lon]));
+        map.fitBounds(bounds, { padding: [40, 40] });
+      }
+    });
+
+    // 원본 경로 표시 토글
+    document.getElementById('toggleOrigPathCheckbox').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        origPathLayer.addTo(map);
+        document.getElementById('legendOrigItem').style.opacity = '1';
+      } else {
+        origPathLayer.remove();
+        document.getElementById('legendOrigItem').style.opacity = '0.4';
+      }
+    });
+
+    // Undo / Redo 버튼 및 키보드 단축키
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    document.getElementById('redoBtn').addEventListener('click', redo);
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          redo();
+        } else {
+          e.preventDefault();
+          undo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        // 입력창에 포커스가 없을 때만 포인트 삭제 단축키 작동
+        if (document.activeElement.tagName !== 'INPUT' && state.selectedIndex !== null) {
+          e.preventDefault();
+          document.getElementById('deletePointBtn').click();
+        }
+      }
+    });
+
+    // 윈도우 리사이즈 대응
+    window.addEventListener('resize', () => {
+      map.invalidateSize();
+      renderElevationChart();
+    });
+
+    // 초기화 안내
+    renderAll();
+    console.log("RunRuun GPX Editor Initialized successfully.");
+  </script>
+</body>
+</html>
