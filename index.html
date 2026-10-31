@@ -1155,6 +1155,8 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- RunRuun Shared Elevation Engine (Phase 2 Shadow Integration) -->
+  <script src="runruun-shared-elevation-engine.js"></script>
 
   <!-- Application Logic -->
   <script>
@@ -1194,7 +1196,8 @@
       demMeasuredElevations: [],     // DEM 서버 직접 조회 고도 (미조회 인덱스는 null)
       demInterpolatedElevations: [], // 조회 지점 사이의 보간 추정 고도
       elevationSource: 'Original GPX', // 고도 데이터 출처 ('Original GPX' | 'Open-Elevation' 등)
-      elevationStatuses: []          // 각 포인트별 상태: 'original' | 'measured' | 'interpolated' | 'failed'
+      elevationStatuses: [],         // 각 포인트별 상태: 'original' | 'measured' | 'interpolated' | 'failed'
+      shadowElevationStats: null     // Phase 2 Shadow Mode 검증용 공통 엔진 계산 결과 (기존 UI 미반영)
     };
 
     // --- Haversine 거리 계산 함수 ---
@@ -1278,6 +1281,36 @@
         if (e2 < minEle) minEle = e2;
         if (e2 > maxEle) maxEle = e2;
       }
+
+      // --- Phase 2 Shadow Integration: 기존 결과/UI는 100% 보존하고 신규 엔진 병렬 검증 ---
+      if (typeof RunruunSharedElevationEngine !== 'undefined') {
+        try {
+          const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+          const sharedRaw = RunruunSharedElevationEngine.calculateElevationStats(points, { method: 'raw' });
+          const sharedTh1 = RunruunSharedElevationEngine.calculateElevationStats(points, { method: 'threshold_1m' });
+          const sharedTh3 = RunruunSharedElevationEngine.calculateElevationStats(points, { method: 'threshold_3m' });
+          const t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+
+          state.shadowElevationStats = {
+            totalDistMeters: sharedRaw.totalDistMeters,
+            totalDistKm: sharedRaw.totalDistKm,
+            rawGain: sharedRaw.eleGain,
+            rawLoss: sharedRaw.eleLoss,
+            th1Gain: sharedTh1.eleGain,
+            th1Loss: sharedTh1.eleLoss,
+            th3Gain: sharedTh3.eleGain,
+            th3Loss: sharedTh3.eleLoss,
+            minEle: sharedRaw.minEle,
+            maxEle: sharedRaw.maxEle,
+            pointCount: sharedRaw.pointCount,
+            timeMs: Math.round((t1 - t0) * 100) / 100
+          };
+          window.shadowElevationResults = state.shadowElevationStats;
+        } catch (shadowErr) {
+          console.warn("[Shadow Integration Warning]", shadowErr);
+        }
+      }
+
       return { totalDist, gain, loss, minEle, maxEle, cumDist };
     }
 

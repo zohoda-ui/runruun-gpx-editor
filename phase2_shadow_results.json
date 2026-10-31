@@ -1,0 +1,222 @@
+{
+  "sha_results": {
+    "cheonglyangsan_15k.gpx": {
+      "hash": "f43f5b5292b4ea3a35412204b1d50cfe0db3831d810e24b286adb124bfcedd07",
+      "match": true
+    },
+    "dynafit_taebaek_trail.gpx": {
+      "hash": "dddcb286536dbb913809a66bae1d909756ae0deb3d3d62591a1652b6cba6b1f1",
+      "match": true
+    },
+    "chuncheon_full.gpx": {
+      "hash": "4cabee88ec5e96ace0f50070485a977b58346e2d5e4070a1beb36eeea7c42bdb",
+      "match": true
+    },
+    "suncheon_bay_ultra.gpx": {
+      "hash": "eb84f263fcc2d98d7b70f3bb3126271d34c216664e85dce6dc0a523b6fe06708",
+      "match": true
+    },
+    "YTN_seoulmarathon.gpx": {
+      "hash": "2b4e5731998114cfb1532cf41604c66645b44919b7a543b459f687a802a1ced8",
+      "match": true
+    }
+  },
+  "comparison_results": {
+    "cheonglyangsan_15k.gpx": {
+      "existing": {
+        "distKm": 14.877601389603392,
+        "pts": 11401,
+        "rawGain": 1810,
+        "rawLoss": 1782,
+        "th1Gain": 1810,
+        "th1Loss": 1782,
+        "th3Gain": 1690,
+        "th3Loss": 1663,
+        "demMeasGain": 1336,
+        "demMeasLoss": 1308,
+        "minEle": 193,
+        "maxEle": 871,
+        "timeMs": 5.2
+      },
+      "shadow": {
+        "distKm": 14.878,
+        "pts": 11401,
+        "rawGain": 1810,
+        "rawLoss": 1782,
+        "th1Gain": 1810,
+        "th1Loss": 1782,
+        "th3Gain": 1690,
+        "th3Loss": 1663,
+        "demMeasGain": 1336,
+        "demMeasLoss": 1308,
+        "demInterpGain": 1336,
+        "demInterpLoss": 1308,
+        "minEle": 193,
+        "maxEle": 871,
+        "timeMs": 4.9
+      }
+    },
+    "dynafit_taebaek_trail.gpx": {
+      "existing": {
+        "distKm": 49.95086755619484,
+        "pts": 1342,
+        "rawGain": 1882,
+        "rawLoss": 1882,
+        "th1Gain": 1869,
+        "th1Loss": 1868,
+        "th3Gain": 1849,
+        "th3Loss": 1850,
+        "demMeasGain": 1839,
+        "demMeasLoss": 1839,
+        "minEle": 619.6,
+        "maxEle": 1534.7,
+        "timeMs": 1.1
+      },
+      "shadow": {
+        "distKm": 49.951,
+        "pts": 1342,
+        "rawGain": 1882,
+        "rawLoss": 1882,
+        "th1Gain": 1869,
+        "th1Loss": 1868,
+        "th3Gain": 1849,
+        "th3Loss": 1850,
+        "demMeasGain": 1839,
+        "demMeasLoss": 1839,
+        "demInterpGain": 1839,
+        "demInterpLoss": 1839,
+        "minEle": 619.6,
+        "maxEle": 1534.7,
+        "timeMs": 1
+      }
+    },
+    "chuncheon_full.gpx": {
+      "existing": {
+        "distKm": 42.471749312084974,
+        "pts": 10780,
+        "rawGain": 330,
+        "rawLoss": 326,
+        "th1Gain": 208,
+        "th1Loss": 204,
+        "th3Gain": 159,
+        "th3Loss": 154,
+        "demMeasGain": 177,
+        "demMeasLoss": 173,
+        "minEle": 71,
+        "maxEle": 114.2,
+        "timeMs": 4.4
+      },
+      "shadow": {
+        "distKm": 42.472,
+        "pts": 10780,
+        "rawGain": 330,
+        "rawLoss": 326,
+        "th1Gain": 208,
+        "th1Loss": 204,
+        "th3Gain": 159,
+        "th3Loss": 154,
+        "demMeasGain": 177,
+        "demMeasLoss": 173,
+        "demInterpGain": 177,
+        "demInterpLoss": 173,
+        "minEle": 71,
+        "maxEle": 114.2,
+        "timeMs": 4.1
+      }
+    },
+    "suncheon_bay_ultra.gpx": {
+      "existing": {
+        "distKm": 103.19674546540466,
+        "pts": 3902,
+        "rawGain": 2545,
+        "rawLoss": 2544,
+        "th1Gain": 2372,
+        "th1Loss": 2371,
+        "th3Gain": 1887,
+        "th3Loss": 1885,
+        "demMeasGain": 1030,
+        "demMeasLoss": 1029,
+        "minEle": 0,
+        "maxEle": 313.20001220703125,
+        "timeMs": 1.2
+      },
+      "shadow": {
+        "distKm": 103.197,
+        "pts": 3902,
+        "rawGain": 2545,
+        "rawLoss": 2544,
+        "th1Gain": 2372,
+        "th1Loss": 2371,
+        "th3Gain": 1887,
+        "th3Loss": 1885,
+        "demMeasGain": 1030,
+        "demMeasLoss": 1029,
+        "demInterpGain": 1030,
+        "demInterpLoss": 1029,
+        "minEle": 0,
+        "maxEle": 313.2,
+        "timeMs": 1.2
+      }
+    },
+    "YTN_seoulmarathon.gpx": {
+      "existing": {
+        "distKm": 21.179596726427004,
+        "pts": 2410,
+        "rawGain": 359,
+        "rawLoss": 340,
+        "th1Gain": 328,
+        "th1Loss": 307,
+        "th3Gain": 269,
+        "th3Loss": 247,
+        "demMeasGain": 267,
+        "demMeasLoss": 248,
+        "minEle": 14.36,
+        "maxEle": 70.7,
+        "timeMs": 0.8
+      },
+      "shadow": {
+        "distKm": 21.18,
+        "pts": 2410,
+        "rawGain": 359,
+        "rawLoss": 340,
+        "th1Gain": 328,
+        "th1Loss": 307,
+        "th3Gain": 269,
+        "th3Loss": 247,
+        "demMeasGain": 267,
+        "demMeasLoss": 248,
+        "demInterpGain": 267,
+        "demInterpLoss": 248,
+        "minEle": 14.4,
+        "maxEle": 70.7,
+        "timeMs": 0.7
+      }
+    }
+  },
+  "extra_checks": {
+    "cheonglyangsan_trkseg": {
+      "parsedSegCount": 168,
+      "exportedSegCount": 168,
+      "wptCount": 0
+    },
+    "pipeline": {
+      "initMatch": true,
+      "editMatch": true,
+      "undoMatch": true,
+      "redoMatch": true,
+      "initGain": 1882,
+      "editGain": 1982,
+      "undoGain": 1882,
+      "redoGain": 1982,
+      "shadowInitGain": 1882,
+      "shadowEditGain": 1982,
+      "shadowUndoGain": 1882,
+      "shadowRedoGain": 1982
+    },
+    "corner_cases": {
+      "existingGain": 120,
+      "shadowGain": 20,
+      "reason": "기존 Editor의 null ?? 0 절벽 왜곡(120m) vs 신규 엔진의 안전 선형 보간(20m)"
+    }
+  }
+}
