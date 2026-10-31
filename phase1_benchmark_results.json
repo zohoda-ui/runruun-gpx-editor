@@ -1,0 +1,507 @@
+{
+  "cheonglyangsan_15k.gpx": {
+    "raw": {
+      "gain": 1810,
+      "loss": 1782,
+      "distKm": 14.878,
+      "pts": 11401,
+      "minEle": 193,
+      "maxEle": 871,
+      "timeMs": 3.15
+    },
+    "threshold_1m": {
+      "gain": 1810,
+      "loss": 1782,
+      "distKm": 14.878,
+      "pts": 11401,
+      "minEle": 193,
+      "maxEle": 871,
+      "timeMs": 1.42
+    },
+    "threshold_3m": {
+      "gain": 1690,
+      "loss": 1663,
+      "distKm": 14.878,
+      "pts": 11401,
+      "minEle": 193,
+      "maxEle": 871,
+      "timeMs": 0.88
+    },
+    "gaussian_15m": {
+      "gain": 1588,
+      "loss": 1560,
+      "distKm": 14.878,
+      "pts": 2976,
+      "minEle": 193,
+      "maxEle": 868.3,
+      "timeMs": 4
+    },
+    "gaussian_25m": {
+      "gain": 1476,
+      "loss": 1448,
+      "distKm": 14.878,
+      "pts": 2976,
+      "minEle": 193,
+      "maxEle": 866.7,
+      "timeMs": 3.2
+    },
+    "gaussian_35m": {
+      "gain": 1392,
+      "loss": 1363,
+      "distKm": 14.878,
+      "pts": 2976,
+      "minEle": 193,
+      "maxEle": 864.9,
+      "timeMs": 3.06
+    },
+    "gaussian_60m": {
+      "gain": 1245,
+      "loss": 1217,
+      "distKm": 14.878,
+      "pts": 2976,
+      "minEle": 193,
+      "maxEle": 859.2,
+      "timeMs": 3.3
+    },
+    "hysteresis_1m": {
+      "gain": 1810,
+      "loss": 1782,
+      "distKm": 14.878,
+      "pts": 11401,
+      "minEle": 193,
+      "maxEle": 871,
+      "timeMs": 1.53
+    },
+    "hysteresis_3m": {
+      "gain": 1780,
+      "loss": 1752,
+      "distKm": 14.878,
+      "pts": 11401,
+      "minEle": 193,
+      "maxEle": 871,
+      "timeMs": 0.97
+    },
+    "dem_measured": {
+      "gain": 1336,
+      "loss": 1308,
+      "distKm": 14.878,
+      "pts": 96,
+      "minEle": 193,
+      "maxEle": 865,
+      "timeMs": 1.16
+    },
+    "dem_interpolated": {
+      "gain": 1336,
+      "loss": 1308,
+      "distKm": 14.878,
+      "pts": 11401,
+      "minEle": 193,
+      "maxEle": 865,
+      "timeMs": 2.23
+    }
+  },
+  "dynafit_taebaek_trail.gpx": {
+    "raw": {
+      "gain": 1882,
+      "loss": 1882,
+      "distKm": 49.951,
+      "pts": 1342,
+      "minEle": 619.6,
+      "maxEle": 1534.7,
+      "timeMs": 0.13
+    },
+    "threshold_1m": {
+      "gain": 1869,
+      "loss": 1868,
+      "distKm": 49.951,
+      "pts": 1342,
+      "minEle": 619.6,
+      "maxEle": 1534.7,
+      "timeMs": 0.14
+    },
+    "threshold_3m": {
+      "gain": 1849,
+      "loss": 1850,
+      "distKm": 49.951,
+      "pts": 1342,
+      "minEle": 619.6,
+      "maxEle": 1534.7,
+      "timeMs": 0.14
+    },
+    "gaussian_15m": {
+      "gain": 1876,
+      "loss": 1876,
+      "distKm": 49.951,
+      "pts": 9991,
+      "minEle": 619.7,
+      "maxEle": 1534.6,
+      "timeMs": 5.32
+    },
+    "gaussian_25m": {
+      "gain": 1870,
+      "loss": 1870,
+      "distKm": 49.951,
+      "pts": 9991,
+      "minEle": 619.8,
+      "maxEle": 1534.4,
+      "timeMs": 2.04
+    },
+    "gaussian_35m": {
+      "gain": 1863,
+      "loss": 1863,
+      "distKm": 49.951,
+      "pts": 9991,
+      "minEle": 619.9,
+      "maxEle": 1534.3,
+      "timeMs": 2.61
+    },
+    "gaussian_60m": {
+      "gain": 1847,
+      "loss": 1846,
+      "distKm": 49.951,
+      "pts": 9991,
+      "minEle": 620.4,
+      "maxEle": 1533.8,
+      "timeMs": 2.65
+    },
+    "hysteresis_1m": {
+      "gain": 1881,
+      "loss": 1881,
+      "distKm": 49.951,
+      "pts": 1342,
+      "minEle": 619.6,
+      "maxEle": 1534.7,
+      "timeMs": 0.21
+    },
+    "hysteresis_3m": {
+      "gain": 1879,
+      "loss": 1877,
+      "distKm": 49.951,
+      "pts": 1342,
+      "minEle": 619.6,
+      "maxEle": 1534.7,
+      "timeMs": 0.2
+    },
+    "dem_measured": {
+      "gain": 1839,
+      "loss": 1839,
+      "distKm": 49.951,
+      "pts": 96,
+      "minEle": 619.7,
+      "maxEle": 1530.1,
+      "timeMs": 0.1
+    },
+    "dem_interpolated": {
+      "gain": 1839,
+      "loss": 1839,
+      "distKm": 49.951,
+      "pts": 1342,
+      "minEle": 619.7,
+      "maxEle": 1530.1,
+      "timeMs": 0.41
+    }
+  },
+  "chuncheon_full.gpx": {
+    "raw": {
+      "gain": 330,
+      "loss": 326,
+      "distKm": 42.472,
+      "pts": 10780,
+      "minEle": 71,
+      "maxEle": 114.2,
+      "timeMs": 1.76
+    },
+    "threshold_1m": {
+      "gain": 208,
+      "loss": 204,
+      "distKm": 42.472,
+      "pts": 10780,
+      "minEle": 71,
+      "maxEle": 114.2,
+      "timeMs": 1.2
+    },
+    "threshold_3m": {
+      "gain": 159,
+      "loss": 154,
+      "distKm": 42.472,
+      "pts": 10780,
+      "minEle": 71,
+      "maxEle": 114.2,
+      "timeMs": 1.85
+    },
+    "gaussian_15m": {
+      "gain": 246,
+      "loss": 242,
+      "distKm": 42.472,
+      "pts": 8495,
+      "minEle": 71.1,
+      "maxEle": 114,
+      "timeMs": 4.68
+    },
+    "gaussian_25m": {
+      "gain": 232,
+      "loss": 227,
+      "distKm": 42.472,
+      "pts": 8495,
+      "minEle": 71.1,
+      "maxEle": 113.9,
+      "timeMs": 2.43
+    },
+    "gaussian_35m": {
+      "gain": 224,
+      "loss": 220,
+      "distKm": 42.472,
+      "pts": 8495,
+      "minEle": 71.1,
+      "maxEle": 113.7,
+      "timeMs": 4.55
+    },
+    "gaussian_60m": {
+      "gain": 208,
+      "loss": 204,
+      "distKm": 42.472,
+      "pts": 8495,
+      "minEle": 71.2,
+      "maxEle": 113.4,
+      "timeMs": 6.48
+    },
+    "hysteresis_1m": {
+      "gain": 236,
+      "loss": 233,
+      "distKm": 42.472,
+      "pts": 10780,
+      "minEle": 71,
+      "maxEle": 114.2,
+      "timeMs": 0.76
+    },
+    "hysteresis_3m": {
+      "gain": 213,
+      "loss": 210,
+      "distKm": 42.472,
+      "pts": 10780,
+      "minEle": 71,
+      "maxEle": 114.2,
+      "timeMs": 0.72
+    },
+    "dem_measured": {
+      "gain": 177,
+      "loss": 173,
+      "distKm": 42.472,
+      "pts": 96,
+      "minEle": 71.4,
+      "maxEle": 112.8,
+      "timeMs": 0.62
+    },
+    "dem_interpolated": {
+      "gain": 177,
+      "loss": 173,
+      "distKm": 42.472,
+      "pts": 10780,
+      "minEle": 71.4,
+      "maxEle": 112.8,
+      "timeMs": 1.93
+    }
+  },
+  "suncheon_bay_ultra.gpx": {
+    "raw": {
+      "gain": 2545,
+      "loss": 2544,
+      "distKm": 103.197,
+      "pts": 3902,
+      "minEle": 0,
+      "maxEle": 313.2,
+      "timeMs": 0.38
+    },
+    "threshold_1m": {
+      "gain": 2372,
+      "loss": 2371,
+      "distKm": 103.197,
+      "pts": 3902,
+      "minEle": 0,
+      "maxEle": 313.2,
+      "timeMs": 0.33
+    },
+    "threshold_3m": {
+      "gain": 1887,
+      "loss": 1885,
+      "distKm": 103.197,
+      "pts": 3902,
+      "minEle": 0,
+      "maxEle": 313.2,
+      "timeMs": 0.3
+    },
+    "gaussian_15m": {
+      "gain": 2189,
+      "loss": 2189,
+      "distKm": 103.197,
+      "pts": 20640,
+      "minEle": 0,
+      "maxEle": 312.8,
+      "timeMs": 3.95
+    },
+    "gaussian_25m": {
+      "gain": 1980,
+      "loss": 1980,
+      "distKm": 103.197,
+      "pts": 20640,
+      "minEle": 0,
+      "maxEle": 312.2,
+      "timeMs": 3.79
+    },
+    "gaussian_35m": {
+      "gain": 1797,
+      "loss": 1798,
+      "distKm": 103.197,
+      "pts": 20640,
+      "minEle": 0.1,
+      "maxEle": 311.6,
+      "timeMs": 4.74
+    },
+    "gaussian_60m": {
+      "gain": 1497,
+      "loss": 1497,
+      "distKm": 103.197,
+      "pts": 20640,
+      "minEle": 0.4,
+      "maxEle": 310,
+      "timeMs": 6.7
+    },
+    "hysteresis_1m": {
+      "gain": 2470,
+      "loss": 2469,
+      "distKm": 103.197,
+      "pts": 3902,
+      "minEle": 0,
+      "maxEle": 313.2,
+      "timeMs": 0.45
+    },
+    "hysteresis_3m": {
+      "gain": 2204,
+      "loss": 2202,
+      "distKm": 103.197,
+      "pts": 3902,
+      "minEle": 0,
+      "maxEle": 313.2,
+      "timeMs": 0.32
+    },
+    "dem_measured": {
+      "gain": 1030,
+      "loss": 1029,
+      "distKm": 103.197,
+      "pts": 96,
+      "minEle": 1,
+      "maxEle": 313,
+      "timeMs": 0.23
+    },
+    "dem_interpolated": {
+      "gain": 1030,
+      "loss": 1029,
+      "distKm": 103.197,
+      "pts": 3902,
+      "minEle": 1,
+      "maxEle": 313,
+      "timeMs": 0.42
+    }
+  },
+  "YTN_seoulmarathon.gpx": {
+    "raw": {
+      "gain": 359,
+      "loss": 340,
+      "distKm": 21.18,
+      "pts": 2410,
+      "minEle": 14.4,
+      "maxEle": 70.7,
+      "timeMs": 0.2
+    },
+    "threshold_1m": {
+      "gain": 328,
+      "loss": 307,
+      "distKm": 21.18,
+      "pts": 2410,
+      "minEle": 14.4,
+      "maxEle": 70.7,
+      "timeMs": 0.16
+    },
+    "threshold_3m": {
+      "gain": 269,
+      "loss": 247,
+      "distKm": 21.18,
+      "pts": 2410,
+      "minEle": 14.4,
+      "maxEle": 70.7,
+      "timeMs": 0.16
+    },
+    "gaussian_15m": {
+      "gain": 353,
+      "loss": 331,
+      "distKm": 21.18,
+      "pts": 4236,
+      "minEle": 14.4,
+      "maxEle": 70.2,
+      "timeMs": 0.82
+    },
+    "gaussian_25m": {
+      "gain": 344,
+      "loss": 322,
+      "distKm": 21.18,
+      "pts": 4236,
+      "minEle": 14.4,
+      "maxEle": 69.4,
+      "timeMs": 1.05
+    },
+    "gaussian_35m": {
+      "gain": 332,
+      "loss": 308,
+      "distKm": 21.18,
+      "pts": 4236,
+      "minEle": 14.5,
+      "maxEle": 68.6,
+      "timeMs": 1.01
+    },
+    "gaussian_60m": {
+      "gain": 293,
+      "loss": 267,
+      "distKm": 21.18,
+      "pts": 4236,
+      "minEle": 14.6,
+      "maxEle": 66.3,
+      "timeMs": 1.21
+    },
+    "hysteresis_1m": {
+      "gain": 359,
+      "loss": 340,
+      "distKm": 21.18,
+      "pts": 2410,
+      "minEle": 14.4,
+      "maxEle": 70.7,
+      "timeMs": 0.2
+    },
+    "hysteresis_3m": {
+      "gain": 337,
+      "loss": 318,
+      "distKm": 21.18,
+      "pts": 2410,
+      "minEle": 14.4,
+      "maxEle": 70.7,
+      "timeMs": 0.18
+    },
+    "dem_measured": {
+      "gain": 267,
+      "loss": 248,
+      "distKm": 21.18,
+      "pts": 96,
+      "minEle": 14.4,
+      "maxEle": 65.3,
+      "timeMs": 0.16
+    },
+    "dem_interpolated": {
+      "gain": 267,
+      "loss": 248,
+      "distKm": 21.18,
+      "pts": 2410,
+      "minEle": 14.4,
+      "maxEle": 65.3,
+      "timeMs": 0.32
+    }
+  }
+}
