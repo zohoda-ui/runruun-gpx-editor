@@ -1,0 +1,431 @@
+{
+  "execution_date": "2026-10-31 17:23:39",
+  "summary": {},
+  "real_datasets": {
+    "cheonglyangsan_15k": {
+      "name": "청량산 15K",
+      "profile": "trail",
+      "distanceKm": 14.878,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 14.88,
+        "totalDistKm": 14.878,
+        "eleGain": 1810,
+        "eleLoss": 1782,
+        "vkm": 121.7,
+        "timeMs": 93
+      },
+      "sharedCompat": {
+        "totalDistKm": 14.878,
+        "eleGain": 1810,
+        "eleLoss": 1782,
+        "vkm": 121.7,
+        "pointCount": 11401,
+        "timeMs": 1.4
+      },
+      "sharedHysteresis": {
+        "eleGain": 1556,
+        "eleLoss": 1528,
+        "vkm": 104.6
+      },
+      "raw": {
+        "eleGain": 1810,
+        "eleLoss": 1782
+      },
+      "dem": {
+        "measuredGain": 1336,
+        "interpGain": 1336
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    },
+    "dynafit_taebaek_trail": {
+      "name": "태백산 50K",
+      "profile": "trail",
+      "distanceKm": 49.951,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 49.95,
+        "totalDistKm": 49.951,
+        "eleGain": 1881,
+        "eleLoss": 1881,
+        "vkm": 37.7,
+        "timeMs": 20.6
+      },
+      "sharedCompat": {
+        "totalDistKm": 49.951,
+        "eleGain": 1881,
+        "eleLoss": 1881,
+        "vkm": 37.7,
+        "pointCount": 1342,
+        "timeMs": 0.2
+      },
+      "sharedHysteresis": {
+        "eleGain": 1874,
+        "eleLoss": 1874,
+        "vkm": 37.5
+      },
+      "raw": {
+        "eleGain": 1882,
+        "eleLoss": 1882
+      },
+      "dem": {
+        "measuredGain": 1839,
+        "interpGain": 1839
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    },
+    "chuncheon_full": {
+      "name": "춘천 풀코스",
+      "profile": "road",
+      "distanceKm": 42.472,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 42.5,
+        "totalDistKm": 42.472,
+        "eleGain": 182,
+        "eleLoss": 178,
+        "vkm": 4.3,
+        "timeMs": 48.4
+      },
+      "sharedCompat": {
+        "totalDistKm": 42.472,
+        "eleGain": 182,
+        "eleLoss": 178,
+        "vkm": 4.3,
+        "pointCount": 4248,
+        "timeMs": 2.2
+      },
+      "sharedHysteresis": {
+        "eleGain": 182,
+        "eleLoss": 178,
+        "vkm": 4.3
+      },
+      "raw": {
+        "eleGain": 330,
+        "eleLoss": 326
+      },
+      "dem": {
+        "measuredGain": 177,
+        "interpGain": 177
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    },
+    "suncheon_bay_ultra": {
+      "name": "순천만 100K",
+      "profile": "road",
+      "distanceKm": 103.197,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 103.2,
+        "totalDistKm": 103.197,
+        "eleGain": 1388,
+        "eleLoss": 1388,
+        "vkm": 13.5,
+        "timeMs": 43.1
+      },
+      "sharedCompat": {
+        "totalDistKm": 103.197,
+        "eleGain": 1385,
+        "eleLoss": 1386,
+        "vkm": 13.4,
+        "pointCount": 10320,
+        "timeMs": 2.9
+      },
+      "sharedHysteresis": {
+        "eleGain": 1385,
+        "eleLoss": 1385,
+        "vkm": 13.4
+      },
+      "raw": {
+        "eleGain": 2545,
+        "eleLoss": 2544
+      },
+      "dem": {
+        "measuredGain": 1030,
+        "interpGain": 1030
+      },
+      "gainDiff": -3,
+      "lossDiff": -2,
+      "exactMatch": false,
+      "withinTolerance": true
+    },
+    "YTN_seoulmarathon": {
+      "name": "YTN 서울마라톤",
+      "profile": "road",
+      "distanceKm": 21.18,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 21.2,
+        "totalDistKm": 21.18,
+        "eleGain": 274,
+        "eleLoss": 251,
+        "vkm": 12.9,
+        "timeMs": 10.9
+      },
+      "sharedCompat": {
+        "totalDistKm": 21.18,
+        "eleGain": 272,
+        "eleLoss": 245,
+        "vkm": 12.8,
+        "pointCount": 2118,
+        "timeMs": 1.1
+      },
+      "sharedHysteresis": {
+        "eleGain": 272,
+        "eleLoss": 243,
+        "vkm": 12.8
+      },
+      "raw": {
+        "eleGain": 359,
+        "eleLoss": 340
+      },
+      "dem": {
+        "measuredGain": 267,
+        "interpGain": 267
+      },
+      "gainDiff": -2,
+      "lossDiff": -6,
+      "exactMatch": false,
+      "withinTolerance": true
+    },
+    "2025mbnseoul": {
+      "name": "2025 MBN 서울",
+      "profile": "road",
+      "distanceKm": 21.082,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 21.1,
+        "totalDistKm": 21.082,
+        "eleGain": 42,
+        "eleLoss": 58,
+        "vkm": 2,
+        "timeMs": 9.1
+      },
+      "sharedCompat": {
+        "totalDistKm": 21.082,
+        "eleGain": 42,
+        "eleLoss": 58,
+        "vkm": 2,
+        "pointCount": 2109,
+        "timeMs": 1.2
+      },
+      "sharedHysteresis": {
+        "eleGain": 42,
+        "eleLoss": 58,
+        "vkm": 2
+      },
+      "raw": {
+        "eleGain": 82,
+        "eleLoss": 98
+      },
+      "dem": {
+        "measuredGain": 52,
+        "interpGain": 52
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    },
+    "happy_trailrun_9k": {
+      "name": "해피 트레일 9K",
+      "profile": "trail",
+      "distanceKm": 9.097,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 9.1,
+        "totalDistKm": 9.097,
+        "eleGain": 320,
+        "eleLoss": 335,
+        "vkm": 35.2,
+        "timeMs": 3.9
+      },
+      "sharedCompat": {
+        "totalDistKm": 9.097,
+        "eleGain": 320,
+        "eleLoss": 335,
+        "vkm": 35.2,
+        "pointCount": 569,
+        "timeMs": 0
+      },
+      "sharedHysteresis": {
+        "eleGain": 319,
+        "eleLoss": 334,
+        "vkm": 35.1
+      },
+      "raw": {
+        "eleGain": 320,
+        "eleLoss": 335
+      },
+      "dem": {
+        "measuredGain": 320,
+        "interpGain": 320
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    },
+    "seoul100k_50k": {
+      "name": "서울100K 50K",
+      "profile": "trail",
+      "distanceKm": 48.968,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 48.97,
+        "totalDistKm": 48.968,
+        "eleGain": 3241,
+        "eleLoss": 3239,
+        "vkm": 66.2,
+        "timeMs": 78.4
+      },
+      "sharedCompat": {
+        "totalDistKm": 48.968,
+        "eleGain": 3241,
+        "eleLoss": 3239,
+        "vkm": 66.2,
+        "pointCount": 27465,
+        "timeMs": 2.4
+      },
+      "sharedHysteresis": {
+        "eleGain": 2851,
+        "eleLoss": 2849,
+        "vkm": 58.2
+      },
+      "raw": {
+        "eleGain": 3241,
+        "eleLoss": 3239
+      },
+      "dem": {
+        "measuredGain": 2008,
+        "interpGain": 2008
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    }
+  },
+  "synthetic_cases": {
+    "vibration_under_1m": {
+      "pointCount": 10,
+      "rawGain": 3,
+      "rawLoss": 2,
+      "creatorTrailGain": 0,
+      "creatorTrailLoss": 0,
+      "creatorRoadGain": 1,
+      "creatorRoadLoss": 0,
+      "sharedHysteresisGain": 0,
+      "sharedHysteresisLoss": 0
+    },
+    "vibration_1_to_2m": {
+      "pointCount": 10,
+      "rawGain": 8,
+      "rawLoss": 6,
+      "creatorTrailGain": 8,
+      "creatorTrailLoss": 6,
+      "creatorRoadGain": 2,
+      "creatorRoadLoss": 0,
+      "sharedHysteresisGain": 0,
+      "sharedHysteresisLoss": 0
+    },
+    "vibration_2_to_3m": {
+      "pointCount": 10,
+      "rawGain": 13,
+      "rawLoss": 10,
+      "creatorTrailGain": 13,
+      "creatorTrailLoss": 10,
+      "creatorRoadGain": 3,
+      "creatorRoadLoss": 0,
+      "sharedHysteresisGain": 13,
+      "sharedHysteresisLoss": 10
+    },
+    "continuous_rise_sharp_drop": {
+      "pointCount": 7,
+      "rawGain": 50,
+      "rawLoss": 60,
+      "creatorTrailGain": 50,
+      "creatorTrailLoss": 60,
+      "creatorRoadGain": 50,
+      "creatorRoadLoss": 60,
+      "sharedHysteresisGain": 50,
+      "sharedHysteresisLoss": 60
+    },
+    "continuous_drop_sharp_rise": {
+      "pointCount": 7,
+      "rawGain": 60,
+      "rawLoss": 50,
+      "creatorTrailGain": 60,
+      "creatorTrailLoss": 50,
+      "creatorRoadGain": 60,
+      "creatorRoadLoss": 50,
+      "sharedHysteresisGain": 60,
+      "sharedHysteresisLoss": 50
+    },
+    "start_end_elevation_difference": {
+      "pointCount": 4,
+      "rawGain": 16,
+      "rawLoss": 1,
+      "creatorTrailGain": 16,
+      "creatorTrailLoss": 1,
+      "creatorRoadGain": 15,
+      "creatorRoadLoss": 0,
+      "sharedHysteresisGain": 15,
+      "sharedHysteresisLoss": 0
+    },
+    "steep_slope_flat_summit": {
+      "pointCount": 5,
+      "rawGain": 100,
+      "rawLoss": 50,
+      "creatorTrailGain": 100,
+      "creatorTrailLoss": 50,
+      "creatorRoadGain": 100,
+      "creatorRoadLoss": 50,
+      "sharedHysteresisGain": 100,
+      "sharedHysteresisLoss": 50
+    },
+    "missing_elevation_gaps": {
+      "pointCount": 5,
+      "rawGain": 130,
+      "rawLoss": 110,
+      "creatorTrailGain": 0,
+      "creatorTrailLoss": 10,
+      "creatorRoadGain": 130,
+      "creatorRoadLoss": 110,
+      "sharedHysteresisGain": 130,
+      "sharedHysteresisLoss": 110
+    }
+  },
+  "performance": {
+    "creatorTimesMs": [
+      68.4,
+      65.9,
+      64.9,
+      62.1,
+      66.6
+    ],
+    "sharedTimesMs": [
+      0.7,
+      0.8,
+      0.7,
+      0.8,
+      0.7
+    ],
+    "avgCreatorMs": 65.6,
+    "avgSharedMs": 0.7,
+    "speedupFactor": 88.6
+  },
+  "console_errors": [
+    "[error] Failed to load resource: net::ERR_FILE_NOT_FOUND",
+    "[error] Failed to load resource: net::ERR_FILE_NOT_FOUND"
+  ]
+}

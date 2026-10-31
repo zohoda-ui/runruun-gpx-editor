@@ -151,6 +151,7 @@
         lon: lon,
         ele: ele !== null ? Math.round(ele * 10) / 10 : null,
         originalEle: origEle,
+        dist: Math.round((targetDist / 1000) * 10000) / 10000,
         distMeters: targetDist,
         eleStatus: (ele !== null) ? 'interpolated' : 'failed',
         eleSource: p0.eleSource || 'Resampled'
@@ -388,6 +389,13 @@
     var opts = options || {};
     var mode = (opts.mode || 'threshold').toLowerCase();
 
+    // Creator 호환 모드는 포인트 객체 원본(결측치, 거리 등)을 직접 참조
+    if (mode === 'creator_trail') {
+      return accumulateCreatorTrail(input, opts.deadband !== undefined ? opts.deadband : 1.0);
+    } else if (mode === 'creator_pivot' || mode === 'creator_road') {
+      return accumulateCreatorPivot(input, opts.threshold !== undefined ? opts.threshold : 3.0);
+    }
+
     // 입력이 포인트 객체 배열인 경우 고도값 추출
     var eles = new Float64Array(input.length);
     for (var i = 0; i < input.length; i++) {
@@ -433,7 +441,7 @@
   }
 
   /**
-   * Hysteresis 상태 머신 누적기 (Creator 표준)
+   * Hysteresis 상태 머신 누적기
    */
   function accumulateHysteresis(eles, deadband) {
     var gain = 0;
@@ -483,6 +491,186 @@
   }
 
   /**
+   * Creator 호환 Trail 데드밴드 누적기 (Creator 표준 재현)
+   * 결측 구간 단절 리셋(wasGap) 및 1.0m 데드밴드 상태 머신 적용
+   */
+  function accumulateCreatorTrail(points, deadband) {
+    if (!Array.isArray(points) || points.length === 0) {
+      return { eleGain: 0, eleLoss: 0 };
+    }
+    var db = (typeof deadband === 'number' && deadband >= 0) ? deadband : 1.0;
+    var eleGain = 0;
+    var eleLoss = 0;
+    var minTrackElev = null;
+    var maxTrackElev = null;
+    var direction = 0; // 0: 초기 미정, 1: 상승, -1: 하강
+    var wasGap = false;
+
+    // 첫 번째 유효 고도값 탐색
+    var startIdx = 0;
+    while (startIdx < points.length) {
+      var item0 = points[startIdx];
+      var e0 = (typeof item0 === 'object' && item0 !== null) ? item0.ele : item0;
+      if (e0 !== null && e0 !== undefined && !isNaN(e0)) {
+        minTrackElev = Number(e0);
+        maxTrackElev = Number(e0);
+        break;
+      }
+      startIdx++;
+    }
+
+    if (minTrackElev !== null) {
+      for (var i = startIdx + 1; i < points.length; i++) {
+        var item = points[i];
+        var cur = (typeof item === 'object' && item !== null) ? item.ele : item;
+
+        // 결측치(null, undefined, NaN) 처리: 결측 구간을 건너뛰면서 직후 포인트와 인위적으로 연결되지 않도록 플래그 설정
+        if (cur === null || cur === undefined || typeof cur !== 'number' || isNaN(cur)) {
+          wasGap = true;
+          continue;
+        }
+
+        cur = Number(cur);
+
+        // 결측 후 복귀 시: 직전 고도와 단절 처리하고 현재 고도 기준으로 상태 머신 리셋
+        if (wasGap) {
+          minTrackElev = cur;
+          maxTrackElev = cur;
+          direction = 0;
+          wasGap = false;
+          continue;
+        }
+
+        if (direction === 0) {
+          if (cur - minTrackElev >= db) {
+            eleGain += (cur - minTrackElev);
+            maxTrackElev = cur;
+            direction = 1;
+          } else if (maxTrackElev - cur >= db) {
+            eleLoss += (maxTrackElev - cur);
+            minTrackElev = cur;
+            direction = -1;
+          }
+        } else if (direction === 1) {
+          if (cur > maxTrackElev) {
+            eleGain += (cur - maxTrackElev);
+            maxTrackElev = cur;
+          } else if (maxTrackElev - cur >= db) {
+            eleLoss += (maxTrackElev - cur);
+            minTrackElev = cur;
+            direction = -1;
+          }
+        } else if (direction === -1) {
+          if (cur < minTrackElev) {
+            eleLoss += (minTrackElev - cur);
+            minTrackElev = cur;
+          } else if (cur - minTrackElev >= db) {
+            eleGain += (cur - minTrackElev);
+            maxTrackElev = cur;
+            direction = 1;
+          }
+        }
+      }
+    }
+
+    return {
+      eleGain: Math.round(eleGain),
+      eleLoss: Math.round(eleLoss)
+    };
+  }
+
+  /**
+   * Creator 호환 Road 피봇 추세 반전 누적기 (Creator Road 표준 재현)
+   * excursionThreshold (기본 3.0m) 기준 피봇 확정 및 종점 피봇 연결
+   */
+  function accumulateCreatorPivot(points, excursionThreshold) {
+    if (!Array.isArray(points) || points.length <= 1) {
+      return { eleGain: 0, eleLoss: 0, confirmedPivots: [] };
+    }
+    var threshold = (typeof excursionThreshold === 'number' && excursionThreshold >= 0) ? excursionThreshold : 3.0;
+
+    // 포인트 배열 정규화 (dist, ele 확보)
+    var pts = new Array(points.length);
+    var runningDist = 0;
+    for (var i = 0; i < points.length; i++) {
+      var item = points[i];
+      var ele = (typeof item === 'object' && item !== null) ? Number(item.ele || 0) : Number(item || 0);
+      var dist = (typeof item === 'object' && item !== null && item.dist !== undefined)
+        ? Number(item.dist)
+        : (i > 0 ? (runningDist += haversineDistance(points[i - 1], points[i], 'km')) : 0);
+      pts[i] = { ele: ele, dist: dist, idx: i };
+    }
+
+    var trend = 0; // 0: 미정, 1: 상승, -1: 하강
+    var lastPivot = { dist: pts[0].dist, ele: pts[0].ele, type: 'START', idx: 0 };
+    var candidatePeak = lastPivot;
+    var candidateValley = lastPivot;
+    var confirmedPivots = [lastPivot];
+
+    for (var j = 1; j < pts.length; j++) {
+      var curEle = pts[j].ele;
+      var curDist = pts[j].dist;
+
+      if (trend === 0) {
+        if (curEle - lastPivot.ele >= threshold) {
+          trend = 1;
+          candidatePeak = { dist: curDist, ele: curEle, type: 'PEAK', idx: j };
+        } else if (lastPivot.ele - curEle >= threshold) {
+          trend = -1;
+          candidateValley = { dist: curDist, ele: curEle, type: 'VALLEY', idx: j };
+        }
+      } else if (trend === 1) {
+        if (curEle > candidatePeak.ele) {
+          candidatePeak = { dist: curDist, ele: curEle, type: 'PEAK', idx: j };
+        } else if (candidatePeak.ele - curEle >= threshold) {
+          // 하강 반전 확정 -> candidatePeak 피봇 등록
+          confirmedPivots.push(candidatePeak);
+          lastPivot = candidatePeak;
+          trend = -1;
+          candidateValley = { dist: curDist, ele: curEle, type: 'VALLEY', idx: j };
+        }
+      } else if (trend === -1) {
+        if (curEle < candidateValley.ele) {
+          candidateValley = { dist: curDist, ele: curEle, type: 'VALLEY', idx: j };
+        } else if (curEle - candidateValley.ele >= threshold) {
+          // 상승 반전 확정 -> candidateValley 피봇 등록
+          confirmedPivots.push(candidateValley);
+          lastPivot = candidateValley;
+          trend = 1;
+          candidatePeak = { dist: curDist, ele: curEle, type: 'PEAK', idx: j };
+        }
+      }
+    }
+
+    // 종점 피봇 등록
+    var lastPt = { dist: pts[pts.length - 1].dist, ele: pts[pts.length - 1].ele, type: 'END', idx: pts.length - 1 };
+    if (trend === 1) {
+      confirmedPivots.push(candidatePeak);
+    } else if (trend === -1) {
+      confirmedPivots.push(candidateValley);
+    }
+    confirmedPivots.push(lastPt);
+
+    // 상승/하강 누적 집계
+    var eleGain = 0;
+    var eleLoss = 0;
+    for (var k = 1; k < confirmedPivots.length; k++) {
+      var deltaEle = confirmedPivots[k].ele - confirmedPivots[k - 1].ele;
+      if (deltaEle > 0) {
+        eleGain += deltaEle;
+      } else {
+        eleLoss += Math.abs(deltaEle);
+      }
+    }
+
+    return {
+      eleGain: Math.round(eleGain),
+      eleLoss: Math.round(eleLoss),
+      confirmedPivots: confirmedPivots
+    };
+  }
+
+  /**
    * 9. 통합 통계 및 고도 프로파일 계산기
    * 11개 벤치마크 모드 및 필터-누적기 자유 조합 지원
    * @param {Array<Object>} points 
@@ -527,8 +715,27 @@
     var gaussianSigma = 15.0;
     var isDemSim = false;
 
-    // --- 11가지 표준 모드 매핑 ---
-    if (method === 'raw') {
+    // --- 11가지 표준 모드 및 Phase 5 신규 통합 정책 매핑 ---
+    if (method === 'creator_trail') {
+      // Phase 5 Creator 호환 Trail 모드: 원본 고도(workingPoints) 대상 Creator Trail 누적기
+      accMode = 'creator_trail';
+      deadbandVal = opts.deadband !== undefined ? opts.deadband : 1.0;
+    } else if (method === 'creator_road') {
+      // Phase 5 Creator 호환 Road 모드: 10m 리샘플링 -> 15% 경사제한 -> 60m 가우시안 -> Creator Pivot 누적기
+      filterType = 'creator_road';
+      accMode = 'creator_pivot';
+      thresholdVal = opts.threshold !== undefined ? opts.threshold : 3.0;
+    } else if (method === 'shared_trail' || method === 'shared_hysteresis_trail') {
+      // Phase 5 Shared Engine Trail 실험 정책: 5m 리샘플링 -> 45% 경사제한 -> 15m 가우시안 -> 2m Hysteresis
+      filterType = 'shared_trail';
+      accMode = 'hysteresis';
+      deadbandVal = opts.deadband !== undefined ? opts.deadband : 1.0;
+    } else if (method === 'shared_road' || method === 'shared_hysteresis_road') {
+      // Phase 5 Shared Engine Road 실험 정책: 10m 리샘플링 -> 15% 경사제한 -> 60m 가우시안 -> 3m Hysteresis
+      filterType = 'creator_road';
+      accMode = 'hysteresis';
+      deadbandVal = opts.deadband !== undefined ? opts.deadband : 3.0;
+    } else if (method === 'raw') {
       accMode = 'raw';
     } else if (method === 'threshold_1m') {
       accMode = 'threshold';
@@ -562,10 +769,18 @@
 
     var finalPoints = workingPoints;
 
-    // 가우시안 필터 적용
+    // 가우시안 및 프로파일별 전처리 필터 적용
     if (filterType === 'gaussian') {
       var resampled = resamplePoints(workingPoints, 5.0);
       finalPoints = spatialGaussianSmooth(resampled, gaussianSigma, 5.0);
+    } else if (filterType === 'creator_road') {
+      var resampledRoad = resamplePoints(workingPoints, 10.0);
+      var spikeLimitedRoad = limitGradientSpikes(resampledRoad, 0.15);
+      finalPoints = spatialGaussianSmooth(spikeLimitedRoad, 60.0, 10.0);
+    } else if (filterType === 'shared_trail') {
+      var resampledTrail = resamplePoints(workingPoints, 5.0);
+      var spikeLimitedTrail = limitGradientSpikes(resampledTrail, 0.45);
+      finalPoints = spatialGaussianSmooth(spikeLimitedTrail, 15.0, 5.0);
     }
 
     // DEM 시뮬레이션 모드 처리
@@ -675,6 +890,8 @@
     interpolateElevations: interpolateElevations,
     calculateDPlus: calculateDPlus,
     calculateDMinus: calculateDMinus,
+    accumulateCreatorTrail: accumulateCreatorTrail,
+    accumulateCreatorPivot: accumulateCreatorPivot,
     calculateElevationStats: calculateElevationStats
   };
 });
