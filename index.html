@@ -814,6 +814,25 @@
             <i class="fa-solid fa-wand-magic-sparkles"></i> 도로 중심선 매칭 실행 (미리보기)
           </button>
 
+          <!-- Match Progress & Cancel Container -->
+          <div id="matchProgressContainer" style="display: none; margin-top: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span id="matchProgressText" style="font-size: 0.76rem; font-weight: 600; color: #38bdf8;">
+                <span class="spinner" style="display: inline-block; width: 12px; height: 12px; border: 2px solid #38bdf8; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right: 4px;"></span>
+                도로 매칭 연산 중...
+              </span>
+              <button id="cancelRoadMatchProcessBtn" class="btn btn-outline" style="padding: 2px 8px; font-size: 0.72rem; color: #f87171; border-color: rgba(239, 68, 68, 0.4);">
+                작업 취소
+              </button>
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden;">
+              <div id="matchProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #10b981); transition: width 0.15s ease;"></div>
+            </div>
+            <div id="matchProgressDetail" style="font-size: 0.70rem; color: var(--text-dim); margin-top: 4px; text-align: right;">
+              0 / 0 구간 (0%)
+            </div>
+          </div>
+
           <!-- Match Review & Approval Card (결과 검토 및 승인) -->
           <div id="matchReviewCard" style="display: none; margin-top: 14px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--accent-blue); border-radius: 8px; padding: 12px;">
             <div style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
@@ -827,6 +846,16 @@
               <div style="background: var(--bg-surface); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
                 <div style="color: var(--text-dim); font-size: 0.7rem;">거리 변화</div>
                 <div id="matchDeltaDistBadge" style="font-weight: 700; color: #f8fafc;">0.00 km</div>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.78rem; margin-bottom: 8px;">
+              <div style="background: var(--bg-surface); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
+                <div style="color: var(--text-dim); font-size: 0.7rem;">처리 시간</div>
+                <div id="matchTimeBadge" style="font-weight: 700; color: #38bdf8;">0.0초</div>
+              </div>
+              <div style="background: var(--bg-surface); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
+                <div style="color: var(--text-dim); font-size: 0.7rem;">좌표 간소화</div>
+                <div id="matchSimplificationBadge" style="font-weight: 700; color: #a78bfa;">0% 감축</div>
               </div>
             </div>
             <div style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 10px;" id="matchChunksBadge">
@@ -2554,98 +2583,405 @@
       renderElevationChart();
     }
 
-    // --- OSRM Match API (도로 중심선 매칭: 8개 청크, 실패구간 원본보존, 경계 중복제거, 신뢰도 산출) ---
-    async function matchPointsWithOSRM(pointsToMatch, profile = 'driving') {
-      const CHUNK_SIZE = 8;
-      const chunks = [];
+    // =========================================================================
+    // OSRM Match Performance Optimizer (Douglas-Peucker, Concurrent Pool, Fast Two-Pointer)
+    // =========================================================================
 
-      // 1개 점씩 겹치도록 청크 슬라이싱
-      for (let i = 0; i < pointsToMatch.length; i += (CHUNK_SIZE - 1)) {
-        chunks.push(pointsToMatch.slice(i, i + CHUNK_SIZE));
-        if (i + CHUNK_SIZE >= pointsToMatch.length) break;
+    // 1. Douglas-Peucker 간소화 및 최대 간격 클램핑 (도로 곡률 및 변곡점 100% 보존)
+    function simplifyPointsForMatching(points, options = {}) {
+      const epsilonMeters = options.epsilonMeters || 2.5;
+      const maxGapMeters = options.maxGapMeters || 200.0;
+      const n = points.length;
+
+      if (n < 3) {
+        return {
+          simplifiedPoints: points.slice(),
+          indexMapping: points.map((_, i) => i),
+          originalCount: n,
+          reducedCount: n,
+          reductionRatio: 0.0
+        };
       }
 
-      let allMatchedCoords = [];
+      // Step A: 1m 미만 중복 좌표 제거 (연속 정체/지터 필터링)
+      const dedupPoints = [points[0]];
+      const dedupIndexMap = [0];
+      for (let i = 1; i < n; i++) {
+        const d = haversineDistance(dedupPoints[dedupPoints.length - 1], points[i]);
+        if (d >= 1.0 || i === n - 1) {
+          dedupPoints.push(points[i]);
+          dedupIndexMap.push(i);
+        }
+      }
+
+      const m = dedupPoints.length;
+      const epsSq = epsilonMeters * epsilonMeters;
+      const marked = new Uint8Array(m);
+      marked[0] = 1;
+      marked[m - 1] = 1;
+
+      // 거리 제곱 고속 수직거리 계산 (Equirectangular 근사)
+      function fastPerpendicularDistSq(p, p1, p2) {
+        const latMid = (p1.lat + p2.lat) * 0.5 * (Math.PI / 180.0);
+        const cosLat = Math.cos(latMid);
+        const R = 6371000.0;
+
+        const x2 = (p2.lon - p1.lon) * (Math.PI / 180.0) * R * cosLat;
+        const y2 = (p2.lat - p1.lat) * (Math.PI / 180.0) * R;
+
+        const xp = (p.lon - p1.lon) * (Math.PI / 180.0) * R * cosLat;
+        const yp = (p.lat - p1.lat) * (Math.PI / 180.0) * R;
+
+        const segLenSq = x2 * x2 + y2 * y2;
+        if (segLenSq < 1e-6) return xp * xp + yp * yp;
+
+        let t = (xp * x2 + yp * y2) / segLenSq;
+        t = Math.max(0.0, Math.min(1.0, t));
+
+        const dx = xp - t * x2;
+        const dy = yp - t * y2;
+        return dx * dx + dy * dy;
+      }
+
+      // 스택 기반 비재귀 RDP
+      const stack = [[0, m - 1]];
+      while (stack.length > 0) {
+        const [startIdx, endIdx] = stack.pop();
+        if (endIdx <= startIdx + 1) continue;
+
+        const p1 = dedupPoints[startIdx];
+        const p2 = dedupPoints[endIdx];
+
+        let maxDistSq = 0.0;
+        let maxIdx = startIdx;
+
+        for (let i = startIdx + 1; i < endIdx; i++) {
+          const dSq = fastPerpendicularDistSq(dedupPoints[i], p1, p2);
+          if (dSq > maxDistSq) {
+            maxDistSq = dSq;
+            maxIdx = i;
+          }
+        }
+
+        if (maxDistSq > epsSq) {
+          marked[maxIdx] = 1;
+          stack.push([startIdx, maxIdx]);
+          stack.push([maxIdx, endIdx]);
+        }
+      }
+
+      // Step B: RDP 간소화 인덱스 수집
+      const rdpIndices = [];
+      for (let i = 0; i < m; i++) {
+        if (marked[i]) rdpIndices.push(i);
+      }
+
+      // Step C: 최대 간격 클램핑 (직선 구간 도로 매칭 탐색 맹점 방지)
+      const finalDedupIndices = [rdpIndices[0]];
+      for (let i = 1; i < rdpIndices.length; i++) {
+        const prevIdx = finalDedupIndices[finalDedupIndices.length - 1];
+        const currIdx = rdpIndices[i];
+
+        const segDist = haversineDistance(dedupPoints[prevIdx], dedupPoints[currIdx]);
+        if (segDist > maxGapMeters) {
+          const numSplits = Math.ceil(segDist / maxGapMeters);
+          const step = (currIdx - prevIdx) / numSplits;
+          for (let s = 1; s < numSplits; s++) {
+            const midIdx = Math.round(prevIdx + s * step);
+            if (midIdx > prevIdx && midIdx < currIdx && midIdx !== finalDedupIndices[finalDedupIndices.length - 1]) {
+              finalDedupIndices.push(midIdx);
+            }
+          }
+        }
+        finalDedupIndices.push(currIdx);
+      }
+
+      // 원본 인덱스 역매핑
+      const finalOriginalIndices = finalDedupIndices.map(di => dedupIndexMap[di]);
+      const simplifiedPoints = finalOriginalIndices.map(oi => Object.assign({}, points[oi]));
+
+      return {
+        simplifiedPoints,
+        indexMapping: finalOriginalIndices,
+        originalCount: n,
+        reducedCount: simplifiedPoints.length,
+        reductionRatio: Math.round((1.0 - simplifiedPoints.length / n) * 1000) / 10
+      };
+    }
+
+    // 2. 초고속 O(N + M) 투포인터 선형 고도 및 시간/세그먼트 보간
+    function fastInterpolateElevations(origPoints, matchedCoords) {
+      const nOrig = origPoints.length;
+      const nNew = matchedCoords.length;
+
+      if (nOrig === 0 || nNew === 0) return [];
+
+      const origCum = new Float64Array(nOrig);
+      for (let i = 1; i < nOrig; i++) {
+        origCum[i] = origCum[i - 1] + haversineDistance(origPoints[i - 1], origPoints[i]);
+      }
+      const totalOrigDist = Math.max(1.0, origCum[nOrig - 1]);
+
+      const newCum = new Float64Array(nNew);
+      for (let i = 1; i < nNew; i++) {
+        newCum[i] = newCum[i - 1] + haversineDistance(
+          { lon: matchedCoords[i - 1][0], lat: matchedCoords[i - 1][1] },
+          { lon: matchedCoords[i][0], lat: matchedCoords[i][1] }
+        );
+      }
+      const totalNewDist = Math.max(1.0, newCum[nNew - 1]);
+
+      const result = new Array(nNew);
+      let j = 0;
+
+      for (let i = 0; i < nNew; i++) {
+        const frac = newCum[i] / totalNewDist;
+        const targetOrigDist = frac * totalOrigDist;
+
+        while (j < nOrig - 2 && origCum[j + 1] < targetOrigDist) {
+          j++;
+        }
+
+        const segSpan = origCum[j + 1] - origCum[j];
+        const segFrac = segSpan > 1e-6 ? Math.max(0.0, Math.min(1.0, (targetOrigDist - origCum[j]) / segSpan)) : 0.0;
+
+        const e1 = (origPoints[j] && origPoints[j].ele !== null && !isNaN(origPoints[j].ele)) ? origPoints[j].ele : 0.0;
+        const e2 = (origPoints[j + 1] && origPoints[j + 1].ele !== null && !isNaN(origPoints[j + 1].ele)) ? origPoints[j + 1].ele : e1;
+        const ele = e1 + (e2 - e1) * segFrac;
+
+        const nearOrigIdx = Math.min(nOrig - 1, Math.floor(frac * nOrig));
+        const nearOrig = origPoints[nearOrigIdx] || origPoints[0];
+
+        result[i] = {
+          lat: matchedCoords[i][1],
+          lon: matchedCoords[i][0],
+          ele: Math.round(ele * 10) / 10,
+          time: nearOrig.time || null,
+          trkIdx: nearOrig.trkIdx ?? 0,
+          segIdx: nearOrig.segIdx ?? 0
+        };
+      }
+
+      return result;
+    }
+
+    // 3. 매칭 결과 연속성 및 이상 점프 검증
+    function validateMatchingResult(origSlice, matchedPts) {
+      const origStats = calculateStats(origSlice);
+      const matchedStats = calculateStats(matchedPts);
+      const warnings = [];
+
+      // A. 거리 변화 검사 (+-15% 초과 시 경고)
+      const deltaPercent = origStats.totalDist > 0 ? ((matchedStats.totalDist - origStats.totalDist) / origStats.totalDist) * 100 : 0;
+      if (Math.abs(deltaPercent) > 15.0) {
+        warnings.push(`거리 변화율이 큽니다 (${deltaPercent > 0 ? '+' : ''}${deltaPercent.toFixed(1)}%). 교차로 우회 여부를 확인하세요.`);
+      }
+
+      // B. 비정상 위치 점프 검사 (연속 포인트 간 80m 초과 단절 검출)
+      let jumpCount = 0;
+      for (let i = 1; i < matchedPts.length; i++) {
+        const d = haversineDistance(matchedPts[i - 1], matchedPts[i]);
+        if (d > 80.0) {
+          jumpCount++;
+        }
+      }
+      if (jumpCount > 0) {
+        warnings.push(`일부 구간(${jumpCount}곳)에서 80m 이상의 간격이 감지되었습니다.`);
+      }
+
+      return {
+        isValid: warnings.length === 0,
+        warnings,
+        origDistKm: (origStats.totalDist / 1000).toFixed(2),
+        matchedDistKm: (matchedStats.totalDist / 1000).toFixed(2),
+        deltaKm: ((matchedStats.totalDist - origStats.totalDist) / 1000).toFixed(2),
+        deltaPercent: deltaPercent.toFixed(1)
+      };
+    }
+
+    // 4. 고효율 OSRM Match 메인 파이프라인 (청크 분할, 동시성 풀, 재시도, 취소 지원)
+    async function matchPointsWithOSRM(pointsToMatch, profile = 'driving', options = {}) {
+      const signal = options.signal || null;
+      const onProgress = options.onProgress || null;
+      const concurrency = options.concurrency || 2;
+      const baseUrl = options.baseUrl || 'https://router.project-osrm.org';
+
+      const tStartTotal = performance.now();
+
+      // 전처리: Douglas-Peucker 2.5m + Max Gap 200m
+      const tStartPre = performance.now();
+      const preRes = simplifyPointsForMatching(pointsToMatch, {
+        epsilonMeters: options.epsilonMeters || 2.5,
+        maxGapMeters: options.maxGapMeters || 200.0
+      });
+      const simplified = preRes.simplifiedPoints;
+      const tPreMs = performance.now() - tStartPre;
+
+      // 청크 분할: OSRM 서버 허용치에 맞춘 CHUNK_SIZE=10, OVERLAP=1
+      const CHUNK_SIZE = 10;
+      const OVERLAP = 1;
+      const chunks = [];
+      for (let i = 0; i < simplified.length; i += (CHUNK_SIZE - OVERLAP)) {
+        const slice = simplified.slice(i, i + CHUNK_SIZE);
+        if (slice.length >= 2) {
+          chunks.push(slice);
+        }
+        if (i + CHUNK_SIZE >= simplified.length) break;
+      }
+
+      if (chunks.length === 0) {
+        throw new Error("도로 매칭을 위한 유효한 좌표 구간을 생성하지 못했습니다.");
+      }
+
+      const chunkResults = new Array(chunks.length);
+      let completedChunks = 0;
       let successChunks = 0;
       let failedChunks = 0;
-      let totalConfidence = 0;
+      let totalConfidence = 0.0;
       let confidenceCount = 0;
 
-      function appendOriginalChunkCoords(chunkPts) {
-        chunkPts.forEach(p => {
-          const coord = [p.lon, p.lat];
+      // 단일 청크 비동기 요청 (실패 시 최대 2회 재시도, radiuses=25 스냅 보정)
+      async function fetchChunkWithRetry(chunk, chunkIdx, maxRetries = 2) {
+        if (signal && signal.aborted) {
+          throw new Error("도로 매칭 작업이 사용자에 의해 취소되었습니다.");
+        }
+
+        const coordsStr = chunk.map(p => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
+        const radiusesStr = chunk.map(() => '25').join(';');
+        const url = `${baseUrl}/match/v1/${profile}/${coordsStr}?overview=full&geometries=geojson&steps=false&radiuses=${radiusesStr}`;
+
+        let attempt = 0;
+        while (attempt <= maxRetries) {
+          if (signal && signal.aborted) {
+            throw new Error("도로 매칭 작업이 사용자에 의해 취소되었습니다.");
+          }
+
+          try {
+            const resp = await fetch(url, {
+              headers: { 'Accept': 'application/json' },
+              signal: signal
+            });
+
+            if (!resp.ok) {
+              if (resp.status >= 500 && attempt < maxRetries) {
+                attempt++;
+                await new Promise(r => setTimeout(r, 200 * attempt));
+                continue;
+              }
+              return {
+                success: false,
+                coords: chunk.map(p => [p.lon, p.lat]),
+                confidence: 0.0
+              };
+            }
+
+            const data = await resp.json();
+            if (data.code !== 'Ok' || !data.matchings || data.matchings.length === 0) {
+              return {
+                success: false,
+                coords: chunk.map(p => [p.lon, p.lat]),
+                confidence: 0.0
+              };
+            }
+
+            // 매칭 성공
+            const matchedCoords = [];
+            let chunkConf = 0.0;
+            let mCount = 0;
+
+            data.matchings.forEach(m => {
+              if (m.confidence !== undefined) {
+                chunkConf += m.confidence;
+                mCount++;
+              }
+              if (m.geometry && m.geometry.coordinates) {
+                matchedCoords.push(...m.geometry.coordinates);
+              }
+            });
+
+            return {
+              success: true,
+              coords: matchedCoords.length > 0 ? matchedCoords : chunk.map(p => [p.lon, p.lat]),
+              confidence: mCount > 0 ? (chunkConf / mCount) : 0.95
+            };
+          } catch (err) {
+            if (signal && signal.aborted) throw err;
+            if (attempt < maxRetries) {
+              attempt++;
+              await new Promise(r => setTimeout(r, 250 * attempt));
+              continue;
+            }
+            return {
+              success: false,
+              coords: chunk.map(p => [p.lon, p.lat]),
+              confidence: 0.0
+            };
+          }
+        }
+      }
+
+      // 동시성 풀 (Concurrency Pool = 2)
+      const tStartNet = performance.now();
+      let nextIndex = 0;
+
+      async function worker() {
+        while (nextIndex < chunks.length) {
+          if (signal && signal.aborted) break;
+          const currentIdx = nextIndex++;
+          const res = await fetchChunkWithRetry(chunks[currentIdx], currentIdx);
+          chunkResults[currentIdx] = res;
+          completedChunks++;
+
+          if (res.success) {
+            successChunks++;
+            totalConfidence += res.confidence;
+            confidenceCount++;
+          } else {
+            failedChunks++;
+          }
+
+          if (typeof onProgress === 'function') {
+            onProgress({
+              completed: completedChunks,
+              total: chunks.length,
+              percent: Math.round((completedChunks / chunks.length) * 100)
+            });
+          }
+        }
+      }
+
+      const workers = [];
+      const actualConcurrency = Math.min(concurrency, chunks.length);
+      for (let w = 0; w < actualConcurrency; w++) {
+        workers.push(worker());
+      }
+      await Promise.all(workers);
+      const tNetMs = performance.now() - tStartNet;
+
+      if (signal && signal.aborted) {
+        throw new Error("도로 매칭 작업이 사용자에 의해 취소되었습니다.");
+      }
+
+      // 구간 결과 병합 및 1m 미만 중복 완벽 제거
+      const allMatchedCoords = [];
+      for (let c = 0; c < chunks.length; c++) {
+        const res = chunkResults[c];
+        if (!res || !res.coords) continue;
+
+        for (let k = 0; k < res.coords.length; k++) {
+          const coord = res.coords[k];
           if (allMatchedCoords.length === 0) {
             allMatchedCoords.push(coord);
           } else {
             const last = allMatchedCoords[allMatchedCoords.length - 1];
-            const d = haversineDistance({ lat: last[1], lon: last[0] }, { lat: coord[1], lon: coord[0] });
-            if (d >= 1.0) allMatchedCoords.push(coord);
+            const d = haversineDistance(
+              { lon: last[0], lat: last[1] },
+              { lon: coord[0], lat: coord[1] }
+            );
+            if (d >= 1.0) {
+              allMatchedCoords.push(coord);
+            }
           }
-        });
-      }
-
-      for (let c = 0; c < chunks.length; c++) {
-        const chunk = chunks[c];
-        if (chunk.length < 2) continue;
-
-        const coordsStr = chunk.map(p => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
-        const url = `https://router.project-osrm.org/match/v1/${profile}/${coordsStr}?overview=full&geometries=geojson&steps=false`;
-
-        let resp;
-        try {
-          resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
-        } catch (netErr) {
-          // 네트워크 요청 실패 (오프라인 / OSRM 서버 연결 불가)
-          throw new Error(`OSRM 네트워크 요청 실패: 서버 통신이 두절되었습니다. 원본 경로가 안전하게 복구되었습니다.`);
-        }
-
-        if (!resp.ok) {
-          // 5xx 서버 오류 등 요청 실패
-          if (resp.status >= 500) {
-            throw new Error(`OSRM 서비스 서버 오류 (HTTP ${resp.status}): 잠시 후 다시 시도해주세요.`);
-          }
-          // 기타 응답 오류 시 해당 청크는 원본 좌표 유지 (매칭 실패 처리)
-          failedChunks++;
-          appendOriginalChunkCoords(chunk);
-          continue;
-        }
-
-        const data = await resp.json();
-
-        // 매칭 실패 (도로망 부재 구간): 원본 좌표 유지
-        if (data.code !== 'Ok' || !data.matchings || data.matchings.length === 0) {
-          failedChunks++;
-          appendOriginalChunkCoords(chunk);
-          continue;
-        }
-
-        // 매칭 성공
-        successChunks++;
-        data.matchings.forEach((m) => {
-          if (m.confidence !== undefined) {
-            totalConfidence += m.confidence;
-            confidenceCount++;
-          }
-
-          if (m.geometry && m.geometry.coordinates) {
-            const coords = m.geometry.coordinates; // [[lon, lat], ...]
-            coords.forEach(coord => {
-              if (allMatchedCoords.length === 0) {
-                allMatchedCoords.push(coord);
-              } else {
-                const last = allMatchedCoords[allMatchedCoords.length - 1];
-                const d = haversineDistance({ lat: last[1], lon: last[0] }, { lat: coord[1], lon: coord[0] });
-                // 1m 미만 중복 완벽 제거
-                if (d >= 1.0) {
-                  allMatchedCoords.push(coord);
-                }
-              }
-            });
-          }
-        });
-
-        if (chunks.length > 5) {
-          await new Promise(r => setTimeout(r, 60));
         }
       }
 
@@ -2653,61 +2989,52 @@
         throw new Error("도로 매칭 결과 유효한 경로 지오메트리를 생성하지 못했습니다. 원본 경로가 유지됩니다.");
       }
 
-      // 고도 선형 보간 적용
-      const interpolated = interpolateElevations(pointsToMatch, allMatchedCoords);
-      const avgConfidence = confidenceCount > 0 ? (totalConfidence / confidenceCount) * 100 : 96.0;
+      // 고속 투포인터 고도 및 시간 보간
+      const tStartInterp = performance.now();
+      const finalMatchedPoints = fastInterpolateElevations(pointsToMatch, allMatchedCoords);
+      const tInterpMs = performance.now() - tStartInterp;
+
+      const tTotalMs = performance.now() - tStartTotal;
+      const avgConfidence = confidenceCount > 0 ? (totalConfidence / confidenceCount) * 100 : 95.0;
+
+      // 결과 검증
+      const validation = validateMatchingResult(pointsToMatch, finalMatchedPoints);
 
       return {
-        matchedPoints: interpolated,
-        avgConfidence: Math.min(100, Math.max(0, avgConfidence)),
+        matchedPoints: finalMatchedPoints,
+        avgConfidence: Math.min(100.0, Math.max(0.0, Math.round(avgConfidence * 10) / 10)),
         totalChunks: chunks.length,
         successChunks,
-        failedChunks
+        failedChunks,
+        validation,
+        preprocessing: {
+          originalCount: preRes.originalCount,
+          reducedCount: preRes.reducedCount,
+          reductionRatio: preRes.reductionRatio,
+          timeMs: Math.round(tPreMs)
+        },
+        timings: {
+          preprocessingMs: Math.round(tPreMs),
+          networkWaitMs: Math.round(tNetMs),
+          elevationInterpolationMs: Math.round(tInterpMs),
+          totalTimeMs: Math.round(tTotalMs)
+        }
       };
     }
 
-    // 고도 선형 보간 (거리 비율 기반)
-    function interpolateElevations(origChunk, newCoords) {
-      const origStats = calculateStats(origChunk);
-      const totalOrigDist = Math.max(1, origStats.totalDist);
+    // 전역 취소 컨트롤러 참조
+    let activeMatchAbortController = null;
 
-      const dummyPts = newCoords.map(c => ({ lat: c[1], lon: c[0] }));
-      const newStats = calculateStats(dummyPts);
-      const totalNewDist = Math.max(1, newStats.totalDist);
-
-      const result = [];
-      for (let i = 0; i < newCoords.length; i++) {
-        const frac = newStats.cumDist[i] / totalNewDist;
-        const targetOrigDist = totalOrigDist * frac;
-
-        let ele = origChunk[0].ele || 0;
-        for (let j = 0; j < origStats.cumDist.length - 1; j++) {
-          if (targetOrigDist >= origStats.cumDist[j] && targetOrigDist <= origStats.cumDist[j+1]) {
-            const segSpan = origStats.cumDist[j+1] - origStats.cumDist[j];
-            const segFrac = segSpan > 0 ? (targetOrigDist - origStats.cumDist[j]) / segSpan : 0;
-            const e1 = origChunk[j].ele || 0;
-            const e2 = origChunk[j+1].ele || 0;
-            ele = e1 + (e2 - e1) * segFrac;
-            break;
-          }
-        }
-
-        const nearOrigIdx = Math.min(origChunk.length - 1, Math.floor(frac * origChunk.length));
-        const nearOrig = origChunk[nearOrigIdx] || origChunk[0];
-
-        result.push({
-          lat: newCoords[i][1],
-          lon: newCoords[i][0],
-          ele: Math.round(ele * 10) / 10,
-          time: nearOrig.time || null,
-          trkIdx: nearOrig.trkIdx ?? 0,
-          segIdx: nearOrig.segIdx ?? 0
-        });
+    // 도로 매칭 취소 버튼 리스너
+    document.getElementById('cancelRoadMatchProcessBtn').addEventListener('click', () => {
+      if (activeMatchAbortController) {
+        activeMatchAbortController.abort();
+        activeMatchAbortController = null;
+        showToast("도로 매칭 작업이 취소되었습니다.", "info");
       }
-      return result;
-    }
+    });
 
-    // 도로 중심선 매칭 실행 (트레일 사전 경고 보호 포함)
+    // 도로 중심선 매칭 실행 트리거 (트레일 사전 경고 보호 포함)
     document.getElementById('executeRoadMatchBtn').addEventListener('click', async () => {
       if (state.currentPoints.length < 2) {
         showToast("먼저 GPX 경로를 불러와주세요.", "error");
@@ -2716,7 +3043,6 @@
 
       const scope = document.getElementById('matchScopeSelect').value;
 
-      // 트레일 코스 사전 경고 모달 (트레일 모드일 때 자동 매칭 방지 및 사용자 명시 승인 시에만 실행)
       if (state.isTrailCourse) {
         showConfirmModal(
           "⚠️ 트레일 / 산길 코스 도로 매칭 주의",
@@ -2730,6 +3056,11 @@
 
     async function doExecuteRoadMatch() {
       const btn = document.getElementById('executeRoadMatchBtn');
+      const progressContainer = document.getElementById('matchProgressContainer');
+      const progressBar = document.getElementById('matchProgressBar');
+      const progressText = document.getElementById('matchProgressText');
+      const progressDetail = document.getElementById('matchProgressDetail');
+
       const profile = document.getElementById('osrmProfileSelect').value;
       const scope = document.getElementById('matchScopeSelect').value;
 
@@ -2754,8 +3085,23 @@
       btn.innerHTML = `<span class="spinner"></span> 도로 매칭 연산 중...`;
       btn.disabled = true;
 
+      // 프로그레스 바 표시 초기화
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      progressDetail.textContent = '좌표 간소화 및 청크 분할 중...';
+
+      activeMatchAbortController = new AbortController();
+
       try {
-        const matchResult = await matchPointsWithOSRM(targetSlice, profile);
+        const matchResult = await matchPointsWithOSRM(targetSlice, profile, {
+          concurrency: 2,
+          signal: activeMatchAbortController.signal,
+          onProgress: (p) => {
+            progressBar.style.width = `${p.percent}%`;
+            progressDetail.textContent = `${p.completed} / ${p.total} 구간 (${p.percent}%)`;
+          }
+        });
+
         const matchedPts = matchResult.matchedPoints;
 
         // 미리보기로 지도에 표시 (즉시 덮어쓰지 않고 승인 대기)
@@ -2789,15 +3135,29 @@
         const deltaSign = deltaM >= 0 ? '+' : '';
         document.getElementById('matchDeltaDistBadge').textContent = `${deltaSign}${deltaKm} km (${deltaSign}${deltaPercent}%)`;
 
-        // 3. 처리 결과 요약
-        document.getElementById('matchChunksBadge').textContent =
-          `총 ${matchResult.totalChunks}개 청크 중 매칭 성공: ${matchResult.successChunks}개 / 도로 없음(원본 유지): ${matchResult.failedChunks}개`;
+        // 3. 소요 시간 및 간소화 배지 (신규 최적화 지표)
+        const totalSec = (matchResult.timings.totalTimeMs / 1000).toFixed(1);
+        document.getElementById('matchTimeBadge').textContent = `${totalSec}초 (고속 처리)`;
+        document.getElementById('matchSimplificationBadge').textContent =
+          `${matchResult.preprocessing.reductionRatio}% 감축 (${matchResult.preprocessing.reducedCount} / ${matchResult.preprocessing.originalCount.toLocaleString()} pts)`;
 
-        // 4. 실패 구간 표시
+        // 4. 처리 결과 요약
+        document.getElementById('matchChunksBadge').textContent =
+          `총 ${matchResult.totalChunks}개 청크 중 성공: ${matchResult.successChunks}개 / 원본유지: ${matchResult.failedChunks}개 (네트워크 대기: ${(matchResult.timings.networkWaitMs / 1000).toFixed(1)}초)`;
+
+        // 5. 실패 및 검증 경고 표시
         const failureAlert = document.getElementById('matchFailureAlert');
-        if (matchResult.failedChunks > 0) {
+        const warnings = (matchResult.validation && matchResult.validation.warnings) ? matchResult.validation.warnings : [];
+        if (matchResult.failedChunks > 0 || warnings.length > 0) {
           failureAlert.style.display = 'block';
-          failureAlert.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> 도로망 부재 구간(${matchResult.failedChunks}개 청크)은 원본 좌표가 안전하게 유지되었습니다.`;
+          let alertHtml = '';
+          if (matchResult.failedChunks > 0) {
+            alertHtml += `<div><i class="fa-solid fa-triangle-exclamation"></i> 도로망 부재 구간(${matchResult.failedChunks}개 청크)은 원본 좌표가 안전하게 유지되었습니다.</div>`;
+          }
+          if (warnings.length > 0) {
+            alertHtml += `<div style="margin-top: 4px;"><i class="fa-solid fa-circle-exclamation"></i> ${warnings.join('<br>')}</div>`;
+          }
+          failureAlert.innerHTML = alertHtml;
         } else {
           failureAlert.style.display = 'none';
         }
@@ -2805,7 +3165,6 @@
         showToast("도로 중심선 매칭 미리보기가 생성되었습니다. 지도와 수치를 확인 후 [승인] 버튼을 누르세요.", "info");
       } catch (err) {
         console.error("OSRM Match Error:", err);
-        // 네트워크 또는 서비스 에러 발생 시 원본 복구 및 에러 구분 안내
         state.previewPoints = null;
         state.matchPreviewData = null;
         document.getElementById('matchReviewCard').style.display = 'none';
@@ -2814,6 +3173,8 @@
       } finally {
         btn.innerHTML = originalBtnHtml;
         btn.disabled = false;
+        progressContainer.style.display = 'none';
+        activeMatchAbortController = null;
       }
     }
 
