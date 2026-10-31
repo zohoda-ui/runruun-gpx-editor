@@ -678,12 +678,20 @@
               <input type="text" id="ptDistInput" class="form-input" disabled value="- km">
             </div>
           </div>
-          <div style="display: flex; gap: 8px; margin-top: 10px;">
-            <button class="btn btn-outline" id="applyPointEditBtn" style="flex: 1;" disabled>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+            <button class="btn btn-outline" id="applyPointEditBtn" disabled>
               <i class="fa-solid fa-check"></i> 좌표 적용
             </button>
+            <button class="btn btn-outline" id="addPointBtn" disabled title="선택한 포인트 뒤에 새 포인트를 추가합니다">
+              <i class="fa-solid fa-plus"></i> 포인트 추가
+            </button>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
             <button class="btn btn-danger" id="deletePointBtn" disabled title="선택한 포인트를 삭제합니다">
-              <i class="fa-solid fa-trash"></i> 삭제
+              <i class="fa-solid fa-trash"></i> 포인트 삭제
+            </button>
+            <button class="btn btn-outline" id="resetToOrigBtn" disabled title="편집 중인 경로를 최초 원본 경로로 초기화합니다">
+              <i class="fa-solid fa-clock-rotate-left"></i> 원본 복원
             </button>
           </div>
 
@@ -1517,7 +1525,9 @@
       eleInput.disabled = false;
 
       document.getElementById('applyPointEditBtn').disabled = false;
+      document.getElementById('addPointBtn').disabled = false;
       document.getElementById('deletePointBtn').disabled = false;
+      document.getElementById('resetToOrigBtn').disabled = false;
       document.getElementById('setRangeStartBtn').disabled = false;
       document.getElementById('setRangeEndBtn').disabled = false;
       document.getElementById('reconnectSetStartBtn').disabled = false;
@@ -1553,6 +1563,29 @@
       showToast("포인트 수정 사항이 적용되었습니다.");
     });
 
+    // 포인트 추가 (선택한 포인트 바로 뒤에 삽입)
+    document.getElementById('addPointBtn').addEventListener('click', () => {
+      if (state.selectedIndex === null) return;
+      const cur = state.currentPoints[state.selectedIndex];
+      const next = state.currentPoints[state.selectedIndex + 1] || cur;
+      
+      // 인접 포인트 중간 좌표로 보간 생성
+      const newPt = {
+        lat: (cur.lat + next.lat) / 2 + (cur === next ? 0.0001 : 0),
+        lon: (cur.lon + next.lon) / 2 + (cur === next ? 0.0001 : 0),
+        ele: cur.ele !== null ? cur.ele : 0,
+        time: cur.time || null,
+        trkIdx: cur.trkIdx ?? 0,
+        segIdx: cur.segIdx ?? 0
+      };
+
+      pushHistory(`포인트 #${state.selectedIndex + 1} 뒤에 새 포인트 추가`);
+      state.currentPoints.splice(state.selectedIndex + 1, 0, newPt);
+      selectPoint(state.selectedIndex + 1);
+      renderAll();
+      showToast(`새 포인트(#${state.selectedIndex + 1})가 추가되었습니다.`);
+    });
+
     // 단일 포인트 삭제
     document.getElementById('deletePointBtn').addEventListener('click', () => {
       if (state.selectedIndex === null) return;
@@ -1565,10 +1598,24 @@
       state.currentPoints.splice(state.selectedIndex, 1);
       state.selectedIndex = null;
       document.getElementById('applyPointEditBtn').disabled = true;
+      document.getElementById('addPointBtn').disabled = true;
       document.getElementById('deletePointBtn').disabled = true;
 
       renderAll();
       showToast("포인트가 삭제되었습니다.");
+    });
+
+    // 원본 복원
+    document.getElementById('resetToOrigBtn').addEventListener('click', () => {
+      if (!state.originalPoints || state.originalPoints.length === 0) return;
+      pushHistory("최초 원본 경로로 복원");
+      state.currentPoints = JSON.parse(JSON.stringify(state.originalPoints));
+      state.selectedIndex = null;
+      state.rangeStart = null;
+      state.rangeEnd = null;
+      state.previewPoints = null;
+      renderAll();
+      showToast("최초 원본 경로로 복원되었습니다.", "info");
     });
 
     // 구간 선택 버튼 핸들러
@@ -2156,6 +2203,7 @@
       state.previewPoints = null;
 
       updateUndoRedoButtons();
+      document.getElementById('resetToOrigBtn').disabled = false;
       renderAll();
 
       if (points.length > 0) {
