@@ -1,0 +1,1193 @@
+{
+  "execution_date": "2026-10-31 17:38:32",
+  "summary": {
+    "all_real_datasets_passed": true,
+    "trail_exact_match_100_percent": true,
+    "road_average_reproducibility": "99.8%",
+    "synthetic_all_passed": true,
+    "data_preservation_passed": true,
+    "console_errors_count": 0,
+    "ready_for_phase7_transition_recommendation": true
+  },
+  "real_datasets": {
+    "cheonglyangsan_15k": {
+      "name": "청량산 15K",
+      "profile": "trail",
+      "distanceKm": 14.878,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 14.88,
+        "totalDistKm": 14.878,
+        "eleGain": 1810,
+        "eleLoss": 1782,
+        "vkm": 121.7,
+        "timeMs": 91
+      },
+      "sharedCompat": {
+        "totalDistKm": 14.878,
+        "eleGain": 1810,
+        "eleLoss": 1782,
+        "vkm": 121.7,
+        "pointCount": 11401,
+        "timeMs": 1.4
+      },
+      "sharedHysteresis": {
+        "eleGain": 1556,
+        "eleLoss": 1528,
+        "vkm": 104.6
+      },
+      "raw": {
+        "eleGain": 1810,
+        "eleLoss": 1782
+      },
+      "dem": {
+        "measuredGain": 1336,
+        "interpGain": 1336
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    },
+    "dynafit_taebaek_trail": {
+      "name": "태백산 50K",
+      "profile": "trail",
+      "distanceKm": 49.951,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 49.95,
+        "totalDistKm": 49.951,
+        "eleGain": 1881,
+        "eleLoss": 1881,
+        "vkm": 37.7,
+        "timeMs": 20.7
+      },
+      "sharedCompat": {
+        "totalDistKm": 49.951,
+        "eleGain": 1881,
+        "eleLoss": 1881,
+        "vkm": 37.7,
+        "pointCount": 1342,
+        "timeMs": 0.3
+      },
+      "sharedHysteresis": {
+        "eleGain": 1874,
+        "eleLoss": 1874,
+        "vkm": 37.5
+      },
+      "raw": {
+        "eleGain": 1882,
+        "eleLoss": 1882
+      },
+      "dem": {
+        "measuredGain": 1839,
+        "interpGain": 1839
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    },
+    "chuncheon_full": {
+      "name": "춘천 풀코스",
+      "profile": "road",
+      "distanceKm": 42.472,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 42.5,
+        "totalDistKm": 42.472,
+        "eleGain": 182,
+        "eleLoss": 178,
+        "vkm": 4.3,
+        "timeMs": 47.2
+      },
+      "sharedCompat": {
+        "totalDistKm": 42.472,
+        "eleGain": 182,
+        "eleLoss": 178,
+        "vkm": 4.3,
+        "pointCount": 4248,
+        "timeMs": 2.8
+      },
+      "sharedHysteresis": {
+        "eleGain": 182,
+        "eleLoss": 178,
+        "vkm": 4.3
+      },
+      "raw": {
+        "eleGain": 330,
+        "eleLoss": 326
+      },
+      "dem": {
+        "measuredGain": 177,
+        "interpGain": 177
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    },
+    "suncheon_bay_ultra": {
+      "name": "순천만 100K",
+      "profile": "road",
+      "distanceKm": 103.197,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 103.2,
+        "totalDistKm": 103.197,
+        "eleGain": 1388,
+        "eleLoss": 1388,
+        "vkm": 13.5,
+        "timeMs": 40.3
+      },
+      "sharedCompat": {
+        "totalDistKm": 103.197,
+        "eleGain": 1385,
+        "eleLoss": 1386,
+        "vkm": 13.4,
+        "pointCount": 10320,
+        "timeMs": 2.8
+      },
+      "sharedHysteresis": {
+        "eleGain": 1385,
+        "eleLoss": 1385,
+        "vkm": 13.4
+      },
+      "raw": {
+        "eleGain": 2545,
+        "eleLoss": 2544
+      },
+      "dem": {
+        "measuredGain": 1030,
+        "interpGain": 1030
+      },
+      "gainDiff": -3,
+      "lossDiff": -2,
+      "exactMatch": false,
+      "withinTolerance": true
+    },
+    "YTN_seoulmarathon": {
+      "name": "YTN 서울마라톤",
+      "profile": "road",
+      "distanceKm": 21.18,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 21.2,
+        "totalDistKm": 21.18,
+        "eleGain": 274,
+        "eleLoss": 251,
+        "vkm": 12.9,
+        "timeMs": 13.8
+      },
+      "sharedCompat": {
+        "totalDistKm": 21.18,
+        "eleGain": 272,
+        "eleLoss": 245,
+        "vkm": 12.8,
+        "pointCount": 2118,
+        "timeMs": 1.2
+      },
+      "sharedHysteresis": {
+        "eleGain": 272,
+        "eleLoss": 243,
+        "vkm": 12.8
+      },
+      "raw": {
+        "eleGain": 359,
+        "eleLoss": 340
+      },
+      "dem": {
+        "measuredGain": 267,
+        "interpGain": 267
+      },
+      "gainDiff": -2,
+      "lossDiff": -6,
+      "exactMatch": false,
+      "withinTolerance": true
+    },
+    "2025mbnseoul": {
+      "name": "2025 MBN 서울",
+      "profile": "road",
+      "distanceKm": 21.082,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 21.1,
+        "totalDistKm": 21.082,
+        "eleGain": 42,
+        "eleLoss": 58,
+        "vkm": 2,
+        "timeMs": 8.9
+      },
+      "sharedCompat": {
+        "totalDistKm": 21.082,
+        "eleGain": 42,
+        "eleLoss": 58,
+        "vkm": 2,
+        "pointCount": 2109,
+        "timeMs": 1.1
+      },
+      "sharedHysteresis": {
+        "eleGain": 42,
+        "eleLoss": 58,
+        "vkm": 2
+      },
+      "raw": {
+        "eleGain": 82,
+        "eleLoss": 98
+      },
+      "dem": {
+        "measuredGain": 52,
+        "interpGain": 52
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    },
+    "happy_trailrun_9k": {
+      "name": "해피 트레일 9K",
+      "profile": "trail",
+      "distanceKm": 9.097,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 9.1,
+        "totalDistKm": 9.097,
+        "eleGain": 320,
+        "eleLoss": 335,
+        "vkm": 35.2,
+        "timeMs": 3.2
+      },
+      "sharedCompat": {
+        "totalDistKm": 9.097,
+        "eleGain": 320,
+        "eleLoss": 335,
+        "vkm": 35.2,
+        "pointCount": 569,
+        "timeMs": 0.1
+      },
+      "sharedHysteresis": {
+        "eleGain": 319,
+        "eleLoss": 334,
+        "vkm": 35.1
+      },
+      "raw": {
+        "eleGain": 320,
+        "eleLoss": 335
+      },
+      "dem": {
+        "measuredGain": 320,
+        "interpGain": 320
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    },
+    "seoul100k_50k": {
+      "name": "서울100K 50K",
+      "profile": "trail",
+      "distanceKm": 48.968,
+      "distDiffMeters": 0.0,
+      "creator": {
+        "totalDistDisplay": 48.97,
+        "totalDistKm": 48.968,
+        "eleGain": 3241,
+        "eleLoss": 3239,
+        "vkm": 66.2,
+        "timeMs": 75.7
+      },
+      "sharedCompat": {
+        "totalDistKm": 48.968,
+        "eleGain": 3241,
+        "eleLoss": 3239,
+        "vkm": 66.2,
+        "pointCount": 27465,
+        "timeMs": 1.8
+      },
+      "sharedHysteresis": {
+        "eleGain": 2851,
+        "eleLoss": 2849,
+        "vkm": 58.2
+      },
+      "raw": {
+        "eleGain": 3241,
+        "eleLoss": 3239
+      },
+      "dem": {
+        "measuredGain": 2008,
+        "interpGain": 2008
+      },
+      "gainDiff": 0,
+      "lossDiff": 0,
+      "exactMatch": true,
+      "withinTolerance": true
+    }
+  },
+  "road_residual_root_cause": {
+    "suncheon_bay_ultra": {
+      "rawPointsCount": 3902,
+      "creatorResampleCount": 10321,
+      "sharedResampleCount": 10320,
+      "resampleDifference": 1,
+      "creatorTailResample": [
+        {
+          "dist": 103.18,
+          "ele": 16.5
+        },
+        {
+          "dist": 103.19,
+          "ele": 15.9
+        },
+        {
+          "dist": 103.1967,
+          "ele": 15.8
+        }
+      ],
+      "sharedTailResample": [
+        {
+          "dist": 103.17,
+          "ele": 16.9
+        },
+        {
+          "dist": 103.18,
+          "ele": 16.5
+        },
+        {
+          "dist": 103.1967,
+          "ele": 15.8
+        }
+      ],
+      "gaussCount": {
+        "creator": 10321,
+        "shared": 10320
+      },
+      "gaussDiffsCount": 1855,
+      "gaussHeadSample": [
+        {
+          "idx": 0,
+          "dist": 0,
+          "c_ele": 15.4,
+          "s_ele": 15.9,
+          "diff": 0.5
+        },
+        {
+          "idx": 1,
+          "dist": 0.01,
+          "c_ele": 15.4,
+          "s_ele": 15.8,
+          "diff": 0.4
+        },
+        {
+          "idx": 2,
+          "dist": 0.02,
+          "c_ele": 15.4,
+          "s_ele": 15.7,
+          "diff": 0.3
+        }
+      ],
+      "gaussTailSample": [
+        {
+          "idx": 10317,
+          "dist": 103.17,
+          "c_ele": 15.5,
+          "s_ele": 15.3,
+          "diff": 0.2
+        },
+        {
+          "idx": 10318,
+          "dist": 103.18,
+          "c_ele": 15.6,
+          "s_ele": 15.4,
+          "diff": 0.2
+        },
+        {
+          "idx": 10319,
+          "dist": 103.19,
+          "c_ele": 15.7,
+          "s_ele": 15.5,
+          "diff": 0.2
+        }
+      ],
+      "pivotsOnIdenticalInput": {
+        "creatorGainLoss": {
+          "gain": 1388,
+          "loss": 1388,
+          "pivots": 122
+        },
+        "sharedGainLossOnCreatorGauss": {
+          "gain": 1388,
+          "loss": 1388,
+          "pivots": 122
+        },
+        "isExactlyIdentical": true
+      },
+      "pivotsOnSharedGauss": {
+        "sharedGainLoss": {
+          "gain": 1385,
+          "loss": 1386,
+          "pivots": 122
+        },
+        "creatorGainLossOnSharedGauss": {
+          "gain": 1385,
+          "loss": 1386,
+          "pivots": 122
+        },
+        "isExactlyIdentical": true
+      },
+      "pivotsComparison": {
+        "creatorTotal": 122,
+        "sharedTotal": 122,
+        "creatorLastPivots": [
+          {
+            "dist": 101.68,
+            "ele": 12.2,
+            "type": "PEAK"
+          },
+          {
+            "dist": 102.2,
+            "ele": 8.4,
+            "type": "VALLEY"
+          },
+          {
+            "dist": 103.19,
+            "ele": 15.7,
+            "type": "PEAK"
+          },
+          {
+            "dist": 103.1967,
+            "ele": 15.7,
+            "type": "END"
+          }
+        ],
+        "sharedLastPivots": [
+          {
+            "dist": 101.68,
+            "ele": 12.2,
+            "type": "PEAK"
+          },
+          {
+            "dist": 102.2,
+            "ele": 8.4,
+            "type": "VALLEY"
+          },
+          {
+            "dist": 103.1967,
+            "ele": 15.5,
+            "type": "PEAK"
+          },
+          {
+            "dist": 103.1967,
+            "ele": 15.5,
+            "type": "END"
+          }
+        ]
+      }
+    },
+    "YTN_seoulmarathon": {
+      "rawPointsCount": 2410,
+      "creatorResampleCount": 2119,
+      "sharedResampleCount": 2118,
+      "resampleDifference": 1,
+      "creatorTailResample": [
+        {
+          "dist": 21.16,
+          "ele": 57.2
+        },
+        {
+          "dist": 21.17,
+          "ele": 56.1
+        },
+        {
+          "dist": 21.1796,
+          "ele": 54.5
+        }
+      ],
+      "sharedTailResample": [
+        {
+          "dist": 21.15,
+          "ele": 58.4
+        },
+        {
+          "dist": 21.16,
+          "ele": 57.2
+        },
+        {
+          "dist": 21.1796,
+          "ele": 54.5
+        }
+      ],
+      "gaussCount": {
+        "creator": 2119,
+        "shared": 2118
+      },
+      "gaussDiffsCount": 390,
+      "gaussHeadSample": [
+        {
+          "idx": 0,
+          "dist": 0,
+          "c_ele": 35.4,
+          "s_ele": 35.7,
+          "diff": 0.3
+        },
+        {
+          "idx": 1,
+          "dist": 0.01,
+          "c_ele": 35.5,
+          "s_ele": 35.8,
+          "diff": 0.3
+        },
+        {
+          "idx": 2,
+          "dist": 0.02,
+          "c_ele": 35.6,
+          "s_ele": 35.8,
+          "diff": 0.2
+        }
+      ],
+      "gaussTailSample": [
+        {
+          "idx": 2115,
+          "dist": 21.15,
+          "c_ele": 60.4,
+          "s_ele": 63.5,
+          "diff": 3.1
+        },
+        {
+          "idx": 2116,
+          "dist": 21.16,
+          "c_ele": 59.6,
+          "s_ele": 63.1,
+          "diff": 3.5
+        },
+        {
+          "idx": 2117,
+          "dist": 21.17,
+          "c_ele": 58.8,
+          "s_ele": 62.8,
+          "diff": 4
+        }
+      ],
+      "pivotsOnIdenticalInput": {
+        "creatorGainLoss": {
+          "gain": 274,
+          "loss": 251,
+          "pivots": 44
+        },
+        "sharedGainLossOnCreatorGauss": {
+          "gain": 274,
+          "loss": 251,
+          "pivots": 44
+        },
+        "isExactlyIdentical": true
+      },
+      "pivotsOnSharedGauss": {
+        "sharedGainLoss": {
+          "gain": 272,
+          "loss": 245,
+          "pivots": 43
+        },
+        "creatorGainLossOnSharedGauss": {
+          "gain": 272,
+          "loss": 245,
+          "pivots": 43
+        },
+        "isExactlyIdentical": true
+      },
+      "pivotsComparison": {
+        "creatorTotal": 44,
+        "sharedTotal": 43,
+        "creatorLastPivots": [
+          {
+            "dist": 20.86,
+            "ele": 50.5,
+            "type": "VALLEY"
+          },
+          {
+            "dist": 21.07,
+            "ele": 65,
+            "type": "PEAK"
+          },
+          {
+            "dist": 21.1796,
+            "ele": 58,
+            "type": "VALLEY"
+          },
+          {
+            "dist": 21.1796,
+            "ele": 58,
+            "type": "END"
+          }
+        ],
+        "sharedLastPivots": [
+          {
+            "dist": 20.72,
+            "ele": 54.5,
+            "type": "PEAK"
+          },
+          {
+            "dist": 20.86,
+            "ele": 50.4,
+            "type": "VALLEY"
+          },
+          {
+            "dist": 21.08,
+            "ele": 64.9,
+            "type": "PEAK"
+          },
+          {
+            "dist": 21.1796,
+            "ele": 62.8,
+            "type": "END"
+          }
+        ]
+      }
+    }
+  },
+  "synthetic_boundary_tests": {
+    "oscillation_0_5m": {
+      "description": "0.5m 미세 진동 10개 포인트",
+      "pointCount": 10,
+      "netElevation": 0.5,
+      "trail": {
+        "gain": 0,
+        "loss": 0
+      },
+      "road": {
+        "gain": 1,
+        "loss": 0
+      },
+      "hysteresis": {
+        "gain": 0,
+        "loss": 0
+      },
+      "expected_trail_gain": 0,
+      "expected_trail_loss": 0,
+      "matchExpected": true,
+      "note": "1m 데드밴드 미만이므로 전량 필터링되어 D+=0m, D-=0m"
+    },
+    "oscillation_1_0m": {
+      "description": "1.0m 고도 진동 10개 포인트",
+      "pointCount": 10,
+      "netElevation": 1,
+      "trail": {
+        "gain": 5,
+        "loss": 4
+      },
+      "road": {
+        "gain": 1,
+        "loss": 0
+      },
+      "hysteresis": {
+        "gain": 0,
+        "loss": 0
+      },
+      "expected_trail_gain": 5,
+      "expected_trail_loss": 4,
+      "matchExpected": true,
+      "note": "1m 임계치 도달 시 극값 누적 시작 (10개 점: 5회 상승, 4회 하강)"
+    },
+    "oscillation_1_5m": {
+      "description": "1.5m 고도 진동 10개 포인트",
+      "pointCount": 10,
+      "netElevation": 1.5,
+      "trail": {
+        "gain": 8,
+        "loss": 6
+      },
+      "road": {
+        "gain": 2,
+        "loss": 0
+      },
+      "hysteresis": {
+        "gain": 0,
+        "loss": 0
+      },
+      "expected_trail_gain": 8,
+      "expected_trail_loss": 6,
+      "matchExpected": true,
+      "note": "1m 데드밴드 초과로 등산로 잔여 지형 굴곡 누적"
+    },
+    "oscillation_2_0m": {
+      "description": "2.0m 고도 진동 10개 포인트",
+      "pointCount": 10,
+      "netElevation": 2,
+      "trail": {
+        "gain": 10,
+        "loss": 8
+      },
+      "road": {
+        "gain": 2,
+        "loss": 0
+      },
+      "hysteresis": {
+        "gain": 10,
+        "loss": 8
+      },
+      "expected_trail_gain": 10,
+      "expected_trail_loss": 8,
+      "matchExpected": true,
+      "note": "2m 진동에 따른 교번 누적"
+    },
+    "oscillation_2_5m": {
+      "description": "2.5m 고도 진동 10개 포인트",
+      "pointCount": 10,
+      "netElevation": 2.5,
+      "trail": {
+        "gain": 13,
+        "loss": 10
+      },
+      "road": {
+        "gain": 3,
+        "loss": 0
+      },
+      "hysteresis": {
+        "gain": 13,
+        "loss": 10
+      },
+      "expected_trail_gain": 13,
+      "expected_trail_loss": 10,
+      "matchExpected": true,
+      "note": "2.5m 진동에 따른 굴곡 누적"
+    },
+    "oscillation_3_0m": {
+      "description": "3.0m 고도 진동 10개 포인트 (Road 피봇 임계점)",
+      "pointCount": 10,
+      "netElevation": 3,
+      "trail": {
+        "gain": 15,
+        "loss": 12
+      },
+      "road": {
+        "gain": 15,
+        "loss": 12
+      },
+      "hysteresis": {
+        "gain": 15,
+        "loss": 12
+      },
+      "expected_trail_gain": 15,
+      "expected_trail_loss": 12,
+      "matchExpected": true,
+      "note": "Road 3m 피봇 및 Trail 1m 데드밴드 모두 확실한 피봇 감지"
+    },
+    "rise_then_sharp_fall": {
+      "description": "50m 점진 상승 후 60m 급격 하강",
+      "pointCount": 7,
+      "netElevation": -10,
+      "trail": {
+        "gain": 50,
+        "loss": 60
+      },
+      "road": {
+        "gain": 50,
+        "loss": 60
+      },
+      "hysteresis": {
+        "gain": 50,
+        "loss": 60
+      },
+      "expected_trail_gain": 50,
+      "expected_trail_loss": 60,
+      "matchExpected": true,
+      "note": "순고도 변화 -10m, D+=50m, D-=60m 정상 분리"
+    },
+    "fall_then_sharp_rise": {
+      "description": "50m 점진 하강 후 60m 급격 상승",
+      "pointCount": 7,
+      "netElevation": 10,
+      "trail": {
+        "gain": 60,
+        "loss": 50
+      },
+      "road": {
+        "gain": 60,
+        "loss": 50
+      },
+      "hysteresis": {
+        "gain": 60,
+        "loss": 50
+      },
+      "expected_trail_gain": 60,
+      "expected_trail_loss": 50,
+      "matchExpected": true,
+      "note": "순고도 변화 +10m, D+=60m, D-=50m 정상 분리"
+    },
+    "start_end_diff": {
+      "description": "시작점 100m, 종점 125m (+25m 순상승)",
+      "pointCount": 4,
+      "netElevation": 25,
+      "trail": {
+        "gain": 27,
+        "loss": 2
+      },
+      "road": {
+        "gain": 25,
+        "loss": 0
+      },
+      "hysteresis": {
+        "gain": 27,
+        "loss": 2
+      },
+      "expected_trail_gain": 27,
+      "expected_trail_loss": 2,
+      "matchExpected": true,
+      "note": "순상승 25m 유지 (27m - 2m = 25m)"
+    },
+    "missing_ele_start_or_end": {
+      "description": "시작점 null, 종점 null 결측",
+      "pointCount": 4,
+      "netElevation": 20,
+      "trail": {
+        "gain": 20,
+        "loss": 0
+      },
+      "road": {
+        "gain": 120,
+        "loss": 120
+      },
+      "hysteresis": {
+        "gain": 120,
+        "loss": 120
+      },
+      "expected_trail_gain": 20,
+      "expected_trail_loss": 0,
+      "matchExpected": true,
+      "note": "시작/종점 null 건너뛰고 유효 구간만 적분"
+    },
+    "missing_ele_mid_single": {
+      "description": "중간 1개 포인트 고도 결측 (100 -> null -> 110)",
+      "pointCount": 3,
+      "netElevation": 10,
+      "trail": {
+        "gain": 0,
+        "loss": 0
+      },
+      "road": {
+        "gain": 110,
+        "loss": 100
+      },
+      "hysteresis": {
+        "gain": 110,
+        "loss": 100
+      },
+      "expected_trail_gain": 0,
+      "expected_trail_loss": 0,
+      "matchExpected": true,
+      "note": "Trail은 wasGap으로 단절 리셋, 보간기는 105m 추정"
+    },
+    "missing_ele_mid_consecutive": {
+      "description": "중간 3개 연속 고도 결측 (100 -> null*3 -> 130)",
+      "pointCount": 5,
+      "netElevation": 30,
+      "trail": {
+        "gain": 0,
+        "loss": 0
+      },
+      "road": {
+        "gain": 130,
+        "loss": 100
+      },
+      "hysteresis": {
+        "gain": 130,
+        "loss": 100
+      },
+      "expected_trail_gain": 0,
+      "expected_trail_loss": 0,
+      "matchExpected": true,
+      "note": "연속 결측 구간 단절 보호 동작"
+    },
+    "duplicate_coords_0m": {
+      "description": "동일 좌표(거리 0m)가 연속으로 존재하는 경우",
+      "pointCount": 4,
+      "netElevation": 20,
+      "trail": {
+        "gain": 20,
+        "loss": 0
+      },
+      "road": {
+        "gain": 20,
+        "loss": 0
+      },
+      "hysteresis": {
+        "gain": 20,
+        "loss": 0
+      },
+      "expected_trail_gain": 20,
+      "expected_trail_loss": 0,
+      "matchExpected": true,
+      "note": "거리 0m 구간에서 무한 루프 또는 NaN 없이 안전 처리"
+    },
+    "multi_trkseg_with_gap": {
+      "description": "2개의 분리된 트랙 세그먼트 사이 결측 단절 (100->130, null, 200->220)",
+      "pointCount": 5,
+      "netElevation": 120,
+      "trail": {
+        "gain": 50,
+        "loss": 0
+      },
+      "road": {
+        "gain": 250,
+        "loss": 130
+      },
+      "hysteresis": {
+        "gain": 250,
+        "loss": 130
+      },
+      "expected_trail_gain": 50,
+      "expected_trail_loss": 0,
+      "matchExpected": true,
+      "note": "세그먼트 간 결측 단절로 점프 배제 (30m + 20m = 50m)"
+    },
+    "multi_trkseg_continuous": {
+      "description": "2개의 분리된 세그먼트가 연속 평면 좌표로 전달된 경우",
+      "pointCount": 4,
+      "netElevation": 120,
+      "trail": {
+        "gain": 120,
+        "loss": 0
+      },
+      "road": {
+        "gain": 120,
+        "loss": 0
+      },
+      "hysteresis": {
+        "gain": 120,
+        "loss": 0
+      },
+      "expected_trail_gain": 120,
+      "expected_trail_loss": 0,
+      "matchExpected": true,
+      "note": "단절 없이 연속 배열 처리 시 합산 (30m + 70m + 20m = 120m)"
+    },
+    "empty_or_single_point": {
+      "description": "포인트가 1개만 있는 비정상 세그먼트",
+      "pointCount": 1,
+      "netElevation": 0,
+      "trail": {
+        "gain": 0,
+        "loss": 0
+      },
+      "road": {
+        "gain": 0,
+        "loss": 0
+      },
+      "hysteresis": {
+        "gain": 0,
+        "loss": 0
+      },
+      "expected_trail_gain": 0,
+      "expected_trail_loss": 0,
+      "matchExpected": true,
+      "note": "단일 포인트 입력 시 런타임 오류 없이 0 반환"
+    },
+    "negative_elevation": {
+      "description": "해수면 아래 음수 고도 (-20m -> -10m -> -30m)",
+      "pointCount": 3,
+      "netElevation": -10,
+      "trail": {
+        "gain": 10,
+        "loss": 20
+      },
+      "road": {
+        "gain": 10,
+        "loss": 20
+      },
+      "hysteresis": {
+        "gain": 10,
+        "loss": 20
+      },
+      "expected_trail_gain": 10,
+      "expected_trail_loss": 20,
+      "matchExpected": true,
+      "note": "음수 고도 부호 보존 및 정상 절대치 적분"
+    },
+    "abnormal_elevation_spike": {
+      "description": "100m -> 1500m -> 102m 단일 스파이크 이상치",
+      "pointCount": 3,
+      "netElevation": 2,
+      "trail": {
+        "gain": 1400,
+        "loss": 1398
+      },
+      "road": {
+        "gain": 1400,
+        "loss": 1398
+      },
+      "hysteresis": {
+        "gain": 1400,
+        "loss": 1398
+      },
+      "expected_trail_gain": 1400,
+      "expected_trail_loss": 1398,
+      "matchExpected": true,
+      "note": "Trail 원본 누적은 물리적 고도 보존, 필터 적용 시 억제"
+    }
+  },
+  "data_preservation": {
+    "originalImmutable": true,
+    "categorizedSources": {
+      "original": 1,
+      "measured": 1,
+      "interpolated": 1,
+      "failed": 1,
+      "manual": 1
+    },
+    "rawPointCount": 11401,
+    "preservedTrksegsCount": 168
+  },
+  "performance_benchmarks": {
+    "cheonglyangsan_15k": {
+      "name": "청량산 15K",
+      "profile": "trail",
+      "pointCount": 11401,
+      "sharedEngine": {
+        "initialMs": 0.7,
+        "avgMs": 0.82,
+        "maxMs": 1.6,
+        "resultDeterministic": true,
+        "eleGain": 1810
+      },
+      "creatorEngine": {
+        "initialMs": 60,
+        "avgMs": 62.68,
+        "maxMs": 74.5,
+        "eleGain": 1810
+      },
+      "scopeNote": "Shared Engine은 순수 고도 계산 파이프라인(calculateElevationStats)을 측정하였으며, Creator는 processGpx 전체(GPX파싱, DOM/차트데이터 생성 포함)를 측정함."
+    },
+    "dynafit_taebaek_trail": {
+      "name": "태백산 50K",
+      "profile": "trail",
+      "pointCount": 1342,
+      "sharedEngine": {
+        "initialMs": 0,
+        "avgMs": 0.11,
+        "maxMs": 0.2,
+        "resultDeterministic": true,
+        "eleGain": 1881
+      },
+      "creatorEngine": {
+        "initialMs": 18.6,
+        "avgMs": 15.05,
+        "maxMs": 16.9,
+        "eleGain": 1881
+      },
+      "scopeNote": "Shared Engine은 순수 고도 계산 파이프라인(calculateElevationStats)을 측정하였으며, Creator는 processGpx 전체(GPX파싱, DOM/차트데이터 생성 포함)를 측정함."
+    },
+    "chuncheon_full": {
+      "name": "춘천 풀코스",
+      "profile": "road",
+      "pointCount": 10780,
+      "sharedEngine": {
+        "initialMs": 2,
+        "avgMs": 1.78,
+        "maxMs": 2.3,
+        "resultDeterministic": true,
+        "eleGain": 182
+      },
+      "creatorEngine": {
+        "initialMs": 36.6,
+        "avgMs": 42,
+        "maxMs": 74.8,
+        "eleGain": 182
+      },
+      "scopeNote": "Shared Engine은 순수 고도 계산 파이프라인(calculateElevationStats)을 측정하였으며, Creator는 processGpx 전체(GPX파싱, DOM/차트데이터 생성 포함)를 측정함."
+    },
+    "suncheon_bay_ultra": {
+      "name": "순천만 100K",
+      "profile": "road",
+      "pointCount": 3902,
+      "sharedEngine": {
+        "initialMs": 2.6,
+        "avgMs": 2.68,
+        "maxMs": 3.4,
+        "resultDeterministic": true,
+        "eleGain": 1385
+      },
+      "creatorEngine": {
+        "initialMs": 30.7,
+        "avgMs": 26.98,
+        "maxMs": 28,
+        "eleGain": 1388
+      },
+      "scopeNote": "Shared Engine은 순수 고도 계산 파이프라인(calculateElevationStats)을 측정하였으며, Creator는 processGpx 전체(GPX파싱, DOM/차트데이터 생성 포함)를 측정함."
+    },
+    "YTN_seoulmarathon": {
+      "name": "YTN 서울마라톤",
+      "profile": "road",
+      "pointCount": 2410,
+      "sharedEngine": {
+        "initialMs": 0.6,
+        "avgMs": 0.81,
+        "maxMs": 1.9,
+        "resultDeterministic": true,
+        "eleGain": 272
+      },
+      "creatorEngine": {
+        "initialMs": 9,
+        "avgMs": 8.99,
+        "maxMs": 11,
+        "eleGain": 274
+      },
+      "scopeNote": "Shared Engine은 순수 고도 계산 파이프라인(calculateElevationStats)을 측정하였으며, Creator는 processGpx 전체(GPX파싱, DOM/차트데이터 생성 포함)를 측정함."
+    },
+    "2025mbnseoul": {
+      "name": "2025 MBN 서울",
+      "profile": "road",
+      "pointCount": 2306,
+      "sharedEngine": {
+        "initialMs": 0.5,
+        "avgMs": 0.67,
+        "maxMs": 1.1,
+        "resultDeterministic": true,
+        "eleGain": 42
+      },
+      "creatorEngine": {
+        "initialMs": 7.2,
+        "avgMs": 6.8,
+        "maxMs": 9.5,
+        "eleGain": 42
+      },
+      "scopeNote": "Shared Engine은 순수 고도 계산 파이프라인(calculateElevationStats)을 측정하였으며, Creator는 processGpx 전체(GPX파싱, DOM/차트데이터 생성 포함)를 측정함."
+    },
+    "happy_trailrun_9k": {
+      "name": "해피 트레일 9K",
+      "profile": "trail",
+      "pointCount": 569,
+      "sharedEngine": {
+        "initialMs": 0,
+        "avgMs": 0.01,
+        "maxMs": 0.1,
+        "resultDeterministic": true,
+        "eleGain": 320
+      },
+      "creatorEngine": {
+        "initialMs": 2.5,
+        "avgMs": 2.35,
+        "maxMs": 2.9,
+        "eleGain": 320
+      },
+      "scopeNote": "Shared Engine은 순수 고도 계산 파이프라인(calculateElevationStats)을 측정하였으며, Creator는 processGpx 전체(GPX파싱, DOM/차트데이터 생성 포함)를 측정함."
+    },
+    "seoul100k_50k": {
+      "name": "서울100K 50K",
+      "profile": "trail",
+      "pointCount": 27465,
+      "sharedEngine": {
+        "initialMs": 1.7,
+        "avgMs": 1.7,
+        "maxMs": 2.4,
+        "resultDeterministic": true,
+        "eleGain": 3241
+      },
+      "creatorEngine": {
+        "initialMs": 74.1,
+        "avgMs": 77.04,
+        "maxMs": 128.5,
+        "eleGain": 3241
+      },
+      "scopeNote": "Shared Engine은 순수 고도 계산 파이프라인(calculateElevationStats)을 측정하였으며, Creator는 processGpx 전체(GPX파싱, DOM/차트데이터 생성 포함)를 측정함."
+    }
+  },
+  "console_errors": []
+}
