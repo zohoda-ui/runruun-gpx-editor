@@ -1659,6 +1659,10 @@
       // 메타데이터
       gpx += `  <metadata>\n`;
       gpx += `    <name>${escapeXml(state.gpxMetadata.name)}</name>\n`;
+      const hasInterpPoints = points.some(p => p.eleStatus === 'interpolated');
+      if (hasInterpPoints) {
+        gpx += `    <desc>Notice: Contains DEM interpolated elevation estimates.</desc>\n`;
+      }
       gpx += `    <time>${new Date().toISOString()}</time>\n`;
       gpx += `  </metadata>\n`;
 
@@ -2001,6 +2005,11 @@
           eleBadge.style.background = 'rgba(245, 158, 11, 0.15)';
           eleBadge.style.color = '#f59e0b';
           eleBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        } else if (status === 'manual') {
+          eleBadge.innerHTML = `<i class="fa-solid fa-pen-to-square" style="color: #a855f7;"></i> 수동 직접 수정 (manual)`;
+          eleBadge.style.background = 'rgba(168, 85, 247, 0.15)';
+          eleBadge.style.color = '#a855f7';
+          eleBadge.style.borderColor = 'rgba(168, 85, 247, 0.4)';
         } else if (status === 'failed') {
           eleBadge.innerHTML = `<i class="fa-solid fa-circle-exclamation" style="color: #ef4444;"></i> 조회 실패·기존 유지 (failed)`;
           eleBadge.style.background = 'rgba(239, 68, 68, 0.15)';
@@ -2039,6 +2048,10 @@
       state.currentPoints[state.selectedIndex].lat = lat;
       state.currentPoints[state.selectedIndex].lon = lon;
       state.currentPoints[state.selectedIndex].ele = ele;
+      state.currentPoints[state.selectedIndex].eleStatus = 'manual';
+      if (state.elevationStatuses) {
+        state.elevationStatuses[state.selectedIndex] = 'manual';
+      }
 
       renderAll();
       showToast("포인트 수정 사항이 적용되었습니다.");
@@ -3048,7 +3061,16 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast("수정된 GPX 파일이 다운로드되었습니다!");
+
+      const hasInterp = state.currentPoints.some(p => p.eleStatus === 'interpolated');
+      const hasMeasured = state.currentPoints.some(p => p.eleStatus === 'measured');
+      if (hasInterp) {
+        showToast("⚠️ DEM 보간 추정 고도가 포함된 GPX가 내보내졌습니다. (실제 지형 D+와 차이가 발생할 수 있습니다)", "warning");
+      } else if (hasMeasured) {
+        showToast("DEM 직접 조회 실측 고도가 포함된 GPX가 다운로드되었습니다.", "info");
+      } else {
+        showToast("수정된 GPX 파일이 다운로드되었습니다!");
+      }
     });
 
     // 지도 줌 맞춤
