@@ -733,6 +733,14 @@
               <input type="text" id="ptDistInput" class="form-input" disabled value="- km">
             </div>
           </div>
+          <div class="form-row" style="margin-top: 4px;">
+            <div class="form-group" style="flex: 1;">
+              <label class="form-label">고도 데이터 유형 및 상태</label>
+              <div id="ptEleStatusBadge" style="font-size: 0.72rem; padding: 4px 8px; border-radius: 4px; background: rgba(148, 163, 184, 0.15); color: var(--text-dim); border: 1px solid var(--border-color); font-weight: 600;">
+                <i class="fa-solid fa-tag"></i> 원본 GPX 고도 (original)
+              </div>
+            </div>
+          </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
             <button class="btn btn-outline" id="applyPointEditBtn" disabled>
               <i class="fa-solid fa-check"></i> 좌표 적용
@@ -925,38 +933,96 @@
             <i class="fa-solid fa-mountain-sun"></i> DEM 고도 조회 (미리보기)
           </button>
 
-          <!-- DEM Review Card (비교 및 승인) -->
-          <div id="demReviewCard" style="display: none; margin-top: 14px; background: rgba(15, 23, 42, 0.7); border: 1px solid #38bdf8; border-radius: 8px; padding: 12px;">
+          <!-- DEM Review Card (비교 및 검토) -->
+          <div id="demReviewCard" style="display: none; margin-top: 14px; background: rgba(15, 23, 42, 0.75); border: 1px solid #38bdf8; border-radius: 8px; padding: 12px;">
             <div style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
               <span><i class="fa-solid fa-chart-line"></i> DEM 고도 비교 및 검토</span>
-              <span id="demReviewSourceTag" style="font-size: 0.68rem; padding: 2px 6px; background: rgba(56, 189, 248, 0.2); border-radius: 4px; color: #38bdf8;">SRTM 30m</span>
+              <span id="demReviewSourceTag" style="font-size: 0.68rem; padding: 2px 6px; background: rgba(56, 189, 248, 0.2); border-radius: 4px; color: #38bdf8; font-weight: 700;">SRTM 30m</span>
             </div>
 
-            <!-- 주요 수치 그리드 -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.74rem; margin-bottom: 10px;">
-              <div style="background: var(--bg-surface); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
-                <div style="color: var(--text-dim); font-size: 0.68rem;">기존 평균 고도</div>
-                <div id="demOrigEleBadge" style="font-weight: 700; color: #94a3b8;">0 m</div>
+            <!-- 필수 경고: 96개 보간 방식 사용 시 안내문 -->
+            <div id="demInterpolationNotice" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24; padding: 8px 10px; border-radius: 6px; font-size: 0.73rem; line-height: 1.45; margin-bottom: 10px;">
+              <i class="fa-solid fa-triangle-exclamation" style="margin-right: 4px;"></i>
+              <strong>표본 간격에 따른 지형 굴곡 손실이 발생할 수 있습니다.</strong><br>
+              보간 프로파일의 D+는 실제 지형 누적 상승고도와 다를 수 있습니다.
+            </div>
+
+            <!-- DEM 조회 메타데이터 및 품질 지표 -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 10px; font-size: 0.73rem; margin-bottom: 10px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span style="color: var(--text-dim);">데이터 출처 / 해상도:</span>
+                <strong id="demMetaSource" style="color: #38bdf8;">Open-Elevation (SRTM 30m)</strong>
               </div>
-              <div style="background: var(--bg-surface); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
-                <div style="color: var(--text-dim); font-size: 0.68rem;">DEM 평균 고도</div>
-                <div id="demNewEleBadge" style="font-weight: 700; color: #38bdf8;">0 m</div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span style="color: var(--text-dim);">DEM 조회 성공률:</span>
+                <strong id="demSuccessRate" style="color: #10b981;">100.0%</strong>
               </div>
-              <div style="background: var(--bg-surface); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
-                <div style="color: var(--text-dim); font-size: 0.68rem;">평균 고도 오차</div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span style="color: var(--text-dim);">직접 조회 포인트 수:</span>
+                <span><strong id="demMeasuredPtCount" style="color: #f59e0b;">0</strong> pt (<span id="demSampleInterval">-</span>m 평균간격)</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-dim);">보간 추정 포인트 수:</span>
+                <span><strong id="demInterpPtCount" style="color: #94a3b8;">0</strong> pt</span>
+              </div>
+            </div>
+
+            <!-- D+ 계산 체계 분리 섹션 -->
+            <div style="margin-bottom: 10px;">
+              <div style="font-size: 0.73rem; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
+                <i class="fa-solid fa-calculator"></i> D+ / D- 계산 체계 분리
+              </div>
+
+              <!-- 1. 원본 GPX D+ / D- -->
+              <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; font-size: 0.72rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                  <span style="color: #94a3b8; font-weight: 600;">1. 원본 GPX 기준</span>
+                  <span style="font-size: 0.68rem; color: var(--text-dim);">순수 측정치</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span>순수 누적: D+ <strong id="demOrigPureGain" style="color: #f8fafc;">0m</strong> / D- <strong id="demOrigPureLoss" style="color: #f8fafc;">0m</strong></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 2px;">
+                  <span style="color: var(--text-dim);">노이즈 필터(1m): D+ <strong id="demOrigFilteredGain" style="color: #38bdf8;">0m</strong> / D- <strong id="demOrigFilteredLoss" style="color: #38bdf8;">0m</strong></span>
+                </div>
+              </div>
+
+              <!-- 2. DEM 직접 조회 지점 통계 -->
+              <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; font-size: 0.72rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                  <span style="color: #f59e0b; font-weight: 600;">2. DEM 직접 조회 지점 통계</span>
+                  <span style="font-size: 0.68rem; color: #f59e0b;">● 직접 측정 <span id="demMeasuredSampleCount">0</span>개</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span>대표 지점 간 변화: D+ <strong id="demMeasuredSampleGain" style="color: #f59e0b;">0m</strong> / D- <strong id="demMeasuredSampleLoss" style="color: #f59e0b;">0m</strong></span>
+                </div>
+              </div>
+
+              <!-- 3. DEM 보간 추정 프로파일 D+ (참고 추정값) -->
+              <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 6px 8px; font-size: 0.72rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                  <span style="color: #38bdf8; font-weight: 600;">3. DEM 보간 프로파일 D+</span>
+                  <span style="font-size: 0.66rem; padding: 1px 5px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; border-radius: 3px; font-weight: 700;">참고 추정값</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span>추정 D+: <strong id="demInterpGain" style="color: #38bdf8;">0m</strong> (<span id="demDeltaGainBadge" style="color: #10b981;">0m</span>)</span>
+                  <span>추정 D-: <strong id="demInterpLoss" style="color: #ec4899;">0m</strong> (<span id="demDeltaLossBadge" style="color: #ec4899;">0m</span>)</span>
+                </div>
+                <div style="font-size: 0.66rem; color: #fbbf24; margin-top: 3px; line-height: 1.35;">
+                  * 주의: 직선 보간에 따른 지형 굴곡 손실로 실제 지형 D+와 다를 수 있습니다.
+                </div>
+              </div>
+            </div>
+
+            <!-- 표고 오차 통계 -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.72rem; margin-bottom: 10px;">
+              <div style="background: var(--bg-surface); padding: 5px 7px; border-radius: 5px; border: 1px solid var(--border-color);">
+                <div style="color: var(--text-dim); font-size: 0.66rem;">평균 고도 오차</div>
                 <div id="demAvgDiffBadge" style="font-weight: 700; color: #f8fafc;">0.0 m</div>
               </div>
-              <div style="background: var(--bg-surface); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
-                <div style="color: var(--text-dim); font-size: 0.68rem;">최대 고도 차이</div>
+              <div style="background: var(--bg-surface); padding: 5px 7px; border-radius: 5px; border: 1px solid var(--border-color);">
+                <div style="color: var(--text-dim); font-size: 0.66rem;">최대 고도 차이</div>
                 <div id="demMaxDiffBadge" style="font-weight: 700; color: #fbbf24;">0.0 m</div>
-              </div>
-              <div style="background: var(--bg-surface); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
-                <div style="color: var(--text-dim); font-size: 0.68rem;">누적 상승 (D+) 변화</div>
-                <div id="demDeltaGainBadge" style="font-weight: 700; color: #10b981;">0 m (0%)</div>
-              </div>
-              <div style="background: var(--bg-surface); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);">
-                <div style="color: var(--text-dim); font-size: 0.68rem;">누적 하강 (D-) 변화</div>
-                <div id="demDeltaLossBadge" style="font-weight: 700; color: #ec4899;">0 m (0%)</div>
               </div>
             </div>
 
@@ -1124,7 +1190,11 @@
       mapAddPointMode: false, // 지도 클릭으로 포인트 추가 모드 플래그
       matchPreviewData: null, // 도로 매칭 검토 및 승인 대기 데이터
       demPreviewData: null,   // DEM 고도 검토 및 승인 대기 데이터
-      originalElevations: []  // 최초 원본 고도값 스냅샷 보존
+      originalElevations: [],        // 최초 원본 고도값 스냅샷 보존
+      demMeasuredElevations: [],     // DEM 서버 직접 조회 고도 (미조회 인덱스는 null)
+      demInterpolatedElevations: [], // 조회 지점 사이의 보간 추정 고도
+      elevationSource: 'Original GPX', // 고도 데이터 출처 ('Original GPX' | 'Open-Elevation' 등)
+      elevationStatuses: []          // 각 포인트별 상태: 'original' | 'measured' | 'interpolated' | 'failed'
     };
 
     // --- Haversine 거리 계산 함수 ---
@@ -1139,6 +1209,47 @@
                 Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       return R * c;
+    }
+
+    // --- D+ / D- 누적 상승 및 하강고도 계산 (노이즈 필터 분리 지원) ---
+    function calculateElevationGainLoss(elevations, threshold = 0) {
+      if (!elevations || elevations.length < 2) return { gain: 0, loss: 0 };
+      let gain = 0;
+      let loss = 0;
+      let lastEle = elevations[0] ?? 0;
+
+      for (let i = 1; i < elevations.length; i++) {
+        const currEle = elevations[i] ?? lastEle;
+        const diff = currEle - lastEle;
+        if (Math.abs(diff) >= threshold) {
+          if (diff > 0) gain += diff;
+          else loss += Math.abs(diff);
+          lastEle = currEle;
+        }
+      }
+      return { gain, loss };
+    }
+
+    // --- DEM 직접 조회 표본 노드 통계 계산 ---
+    function calculateMeasuredSampleStats(points, measuredIndices, measuredElevations) {
+      if (!measuredIndices || measuredIndices.length < 2) {
+        return { count: measuredIndices ? measuredIndices.length : 0, gain: 0, loss: 0, avgInterval: 0, totalDist: 0 };
+      }
+      const sampleEles = measuredIndices.map(idx => measuredElevations[idx] ?? (points[idx]?.ele || 0));
+      const { gain, loss } = calculateElevationGainLoss(sampleEles, 0);
+
+      let totalDist = 0;
+      for (let i = 1; i < measuredIndices.length; i++) {
+        totalDist += haversineDistance(points[measuredIndices[i-1]], points[measuredIndices[i]]);
+      }
+      const avgInterval = totalDist / (measuredIndices.length - 1);
+      return {
+        count: measuredIndices.length,
+        gain,
+        loss,
+        avgInterval,
+        totalDist
+      };
     }
 
     // --- 총 거리 및 누적 상승/하강 계산 ---
@@ -1213,6 +1324,10 @@
     function pushHistory(actionName = "작업") {
       state.history.push({
         points: JSON.parse(JSON.stringify(state.currentPoints)),
+        demMeasuredElevations: [...(state.demMeasuredElevations || [])],
+        demInterpolatedElevations: [...(state.demInterpolatedElevations || [])],
+        elevationSource: state.elevationSource,
+        elevationStatuses: [...(state.elevationStatuses || [])],
         actionName
       });
       if (state.history.length > 50) state.history.shift();
@@ -1223,11 +1338,19 @@
     function undo() {
       if (state.history.length === 0) return;
       const current = {
-        points: JSON.parse(JSON.stringify(state.currentPoints))
+        points: JSON.parse(JSON.stringify(state.currentPoints)),
+        demMeasuredElevations: [...(state.demMeasuredElevations || [])],
+        demInterpolatedElevations: [...(state.demInterpolatedElevations || [])],
+        elevationSource: state.elevationSource,
+        elevationStatuses: [...(state.elevationStatuses || [])]
       };
       state.redoStack.push(current);
       const prev = state.history.pop();
       state.currentPoints = prev.points;
+      state.demMeasuredElevations = prev.demMeasuredElevations || [];
+      state.demInterpolatedElevations = prev.demInterpolatedElevations || [];
+      state.elevationSource = prev.elevationSource || 'Original GPX';
+      state.elevationStatuses = prev.elevationStatuses || [];
       state.selectedIndex = null;
       renderAll();
       updateUndoRedoButtons();
@@ -1239,9 +1362,17 @@
       const next = state.redoStack.pop();
       state.history.push({
         points: JSON.parse(JSON.stringify(state.currentPoints)),
+        demMeasuredElevations: [...(state.demMeasuredElevations || [])],
+        demInterpolatedElevations: [...(state.demInterpolatedElevations || [])],
+        elevationSource: state.elevationSource,
+        elevationStatuses: [...(state.elevationStatuses || [])],
         actionName: "다시 실행"
       });
       state.currentPoints = next.points;
+      state.demMeasuredElevations = next.demMeasuredElevations || [];
+      state.demInterpolatedElevations = next.demInterpolatedElevations || [];
+      state.elevationSource = next.elevationSource || 'Original GPX';
+      state.elevationStatuses = next.elevationStatuses || [];
       state.selectedIndex = null;
       renderAll();
       updateUndoRedoButtons();
@@ -1852,6 +1983,41 @@
       const stats = calculateStats(state.currentPoints.slice(0, idx + 1));
       distInput.value = `${(stats.totalDist / 1000).toFixed(2)} km (#${idx + 1})`;
 
+      // 고도 데이터 유형 및 상태 배지 갱신
+      const eleBadge = document.getElementById('ptEleStatusBadge');
+      if (eleBadge) {
+        const status = (state.demPreviewData && state.demPreviewData.statuses && state.demPreviewData.statuses[idx])
+          || pt.eleStatus
+          || (state.elevationStatuses && state.elevationStatuses[idx])
+          || 'original';
+
+        if (status === 'measured') {
+          eleBadge.innerHTML = `<i class="fa-solid fa-satellite" style="color: #10b981;"></i> DEM 직접 조회 (measured)`;
+          eleBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+          eleBadge.style.color = '#10b981';
+          eleBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        } else if (status === 'interpolated') {
+          eleBadge.innerHTML = `<i class="fa-solid fa-chart-line" style="color: #f59e0b;"></i> DEM 보간 추정 (interpolated)`;
+          eleBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+          eleBadge.style.color = '#f59e0b';
+          eleBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        } else if (status === 'failed') {
+          eleBadge.innerHTML = `<i class="fa-solid fa-circle-exclamation" style="color: #ef4444;"></i> 조회 실패·기존 유지 (failed)`;
+          eleBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+          eleBadge.style.color = '#ef4444';
+          eleBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        } else {
+          eleBadge.innerHTML = `<i class="fa-solid fa-file" style="color: #94a3b8;"></i> 원본 GPX 고도 (original)`;
+          eleBadge.style.background = 'rgba(148, 163, 184, 0.15)';
+          eleBadge.style.color = 'var(--text-dim)';
+          eleBadge.style.borderColor = 'var(--border-color)';
+        }
+      }
+
+      if (state.demPreviewData && state.demPreviewData.elevations && state.demPreviewData.elevations[idx] !== null) {
+        eleInput.value = state.demPreviewData.elevations[idx].toFixed(1);
+      }
+
       renderMap();
       renderElevationChart();
       showToast(`포인트 #${idx + 1} 선택됨`, 'info');
@@ -2047,8 +2213,23 @@
       const plotWidth = width - padLeft - padRight;
       const plotHeight = height - padTop - padBottom;
 
-      const minEle = Math.floor(stats.minEle / 10) * 10 - 5;
-      const maxEle = Math.ceil(stats.maxEle / 10) * 10 + 10;
+      // DEM 데이터 유무 확인 (미리보기 중이거나 이미 적용된 경우)
+      const hasDemPreview = !!(state.demPreviewData && state.demPreviewData.elevations);
+      const isDemApplied = state.elevationStatuses && state.elevationStatuses.some(s => s === 'measured' || s === 'interpolated');
+      const showDemMode = hasDemPreview || isDemApplied;
+
+      // 고도 최소/최대 범위 계산 (원본 고도와 DEM 고도 모두 수용)
+      let allEles = state.currentPoints.map(p => p.ele ?? 0);
+      if (hasDemPreview) {
+        allEles = allEles.concat(state.demPreviewData.elevations.filter(e => e !== null));
+      }
+      if (state.originalElevations && state.originalElevations.length > 0) {
+        allEles = allEles.concat(state.originalElevations.filter(e => e !== null));
+      }
+      const rawMin = Math.min(...allEles);
+      const rawMax = Math.max(...allEles);
+      const minEle = Math.floor(rawMin / 10) * 10 - 5;
+      const maxEle = Math.ceil(rawMax / 10) * 10 + 10;
       const eleSpan = Math.max(20, maxEle - minEle);
 
       // 배경 그리드
@@ -2078,65 +2259,117 @@
         ctx.fillText(`${dKm}km`, x, height - 8);
       }
 
-      // 프로파일 패스 그리기
       const getX = (dist) => padLeft + (dist / totalDist) * plotWidth;
       const getY = (ele) => padTop + (1 - (ele - minEle) / eleSpan) * plotHeight;
 
-      ctx.beginPath();
-      ctx.moveTo(getX(cumDist[0]), getY(state.currentPoints[0].ele || 0));
-
-      for (let i = 1; i < state.currentPoints.length; i++) {
-        ctx.lineTo(getX(cumDist[i]), getY(state.currentPoints[i].ele || 0));
-      }
-
-      // Gradient Fill
-      const gradient = ctx.createLinearGradient(0, padTop, 0, height - padBottom);
-      gradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
-      gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-
-      ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      ctx.lineTo(getX(totalDist), height - padBottom);
-      ctx.lineTo(getX(0), height - padBottom);
-      ctx.closePath();
-      ctx.fillStyle = gradient;
-      ctx.fill();
-
-      // DEM 고도 미리보기 오버레이 (주황색 점선 및 범례)
-      if (state.demPreviewData && state.demPreviewData.elevations) {
-        const demEles = state.demPreviewData.elevations;
+      if (!showDemMode) {
+        // [일반 모드] DEM 적용 전: 기본 초록색 실선 및 그라데이션
         ctx.beginPath();
-        ctx.setLineDash([4, 4]);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#f59e0b'; // 황금/주황색 점선
+        ctx.moveTo(getX(cumDist[0]), getY(state.currentPoints[0].ele || 0));
+        for (let i = 1; i < state.currentPoints.length; i++) {
+          ctx.lineTo(getX(cumDist[i]), getY(state.currentPoints[i].ele || 0));
+        }
 
-        let firstPt = true;
-        for (let i = 0; i < state.currentPoints.length; i++) {
-          const ele = demEles[i] !== null && demEles[i] !== undefined ? demEles[i] : (state.currentPoints[i].ele || 0);
-          const x = getX(cumDist[i] || 0);
-          const y = getY(ele);
-          if (firstPt) {
-            ctx.moveTo(x, y);
-            firstPt = false;
-          } else {
-            ctx.lineTo(x, y);
-          }
+        const gradient = ctx.createLinearGradient(0, padTop, 0, height - padBottom);
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.lineTo(getX(totalDist), height - padBottom);
+        ctx.lineTo(getX(0), height - padBottom);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // 범례 (기본)
+        ctx.font = '10px Inter';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('― 원본 GPX 고도', width - padRight, padTop + 8);
+      } else {
+        // [DEM 비교/적용 모드]
+        // 1. 원본 GPX 고도: 회색 실선 (#94a3b8)
+        const origEles = (state.originalElevations && state.originalElevations.length === state.currentPoints.length)
+          ? state.originalElevations
+          : (state.originalPoints && state.originalPoints.length === state.currentPoints.length)
+            ? state.originalPoints.map(p => p.ele)
+            : state.currentPoints.map(p => p.ele);
+
+        ctx.beginPath();
+        ctx.moveTo(getX(cumDist[0]), getY(origEles[0] || 0));
+        for (let i = 1; i < state.currentPoints.length; i++) {
+          ctx.lineTo(getX(cumDist[i]), getY(origEles[i] || 0));
+        }
+        ctx.strokeStyle = '#94a3b8'; // 회색 실선
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([]);
+        ctx.stroke();
+
+        // 2. DEM 보간 추정 구간: 주황색 점선 (#f59e0b)
+        const targetDemEles = hasDemPreview
+          ? state.demPreviewData.elevations
+          : state.currentPoints.map(p => p.ele);
+
+        ctx.beginPath();
+        ctx.setLineDash([4, 4]); // 점선
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.moveTo(getX(cumDist[0]), getY(targetDemEles[0] || 0));
+        for (let i = 1; i < state.currentPoints.length; i++) {
+          const ele = targetDemEles[i] !== null && targetDemEles[i] !== undefined ? targetDemEles[i] : (state.currentPoints[i].ele || 0);
+          ctx.lineTo(getX(cumDist[i]), getY(ele));
         }
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // 범례 (Chart Legend)
+        // 3. 실제 DEM 직접 조회 지점: 원형 마커 (#f59e0b 원형 점)
+        let measuredPts = [];
+        if (hasDemPreview && state.demPreviewData.measuredIndices) {
+          measuredPts = state.demPreviewData.measuredIndices;
+        } else if (state.elevationStatuses) {
+          state.elevationStatuses.forEach((st, idx) => {
+            if (st === 'measured') measuredPts.push(idx);
+          });
+        }
+
+        measuredPts.forEach(idx => {
+          if (idx >= 0 && idx < state.currentPoints.length) {
+            const x = getX(cumDist[idx]);
+            const ele = (targetDemEles[idx] !== null && targetDemEles[idx] !== undefined)
+              ? targetDemEles[idx]
+              : (state.currentPoints[idx].ele || 0);
+            const y = getY(ele);
+
+            ctx.beginPath();
+            ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#f59e0b';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+          }
+        });
+
+        // 4. 범례 (Chart Legend)
         ctx.font = '10px Inter';
         ctx.textAlign = 'right';
-        ctx.fillStyle = '#10b981';
-        ctx.fillText('■ 기존 고도', width - padRight, padTop + 8);
+
+        // 원본 GPX 고도 범례 (회색 실선)
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('― 원본 GPX 고도', width - padRight, padTop + 8);
+
+        // DEM 직접 조회 지점 범례 (주황색 원형 점)
         ctx.fillStyle = '#f59e0b';
-        ctx.fillText('■ DEM 30m', width - padRight, padTop + 22);
+        ctx.fillText('● DEM 직접 조회 지점', width - padRight, padTop + 22);
+
+        // DEM 보간 추정 구간 범례 (주황색 점선)
+        ctx.fillText('┈┈ DEM 보간 추정 구간', width - padRight, padTop + 36);
       }
 
-      // 선택된 포인트 강조
+      // 5. 현재 선택된 포인트 강조 마커 (하늘색 세로선 및 점)
       if (state.selectedIndex !== null && state.currentPoints[state.selectedIndex]) {
         const selDist = cumDist[state.selectedIndex];
         const selEle = state.currentPoints[state.selectedIndex].ele || 0;
@@ -2154,14 +2387,14 @@
 
         ctx.fillStyle = '#38bdf8';
         ctx.beginPath();
-        ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+        ctx.arc(sx, sy, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
 
-      // 캔버스 인터랙션: 마우스 호버 동기화
+      // 6. 캔버스 인터랙션: 마우스 호버 동기화 및 고도 상태 식별 표시
       canvas.onmousemove = (e) => {
         const cRect = canvas.getBoundingClientRect();
         const mx = e.clientX - cRect.left;
@@ -2180,8 +2413,23 @@
         const hoverPt = state.currentPoints[low];
         if (hoverPt) {
           hoverIndicatorMarker.setLatLng([hoverPt.lat, hoverPt.lon]).addTo(map);
+
+          // 고도 상태 판별
+          let statusLabel = '원본 GPX';
+          const pStatus = (hasDemPreview && state.demPreviewData.statuses)
+            ? state.demPreviewData.statuses[low]
+            : (hoverPt.eleStatus || (state.elevationStatuses && state.elevationStatuses[low]));
+
+          if (pStatus === 'measured') statusLabel = 'DEM 직접측정';
+          else if (pStatus === 'interpolated') statusLabel = 'DEM 보간추정';
+          else if (pStatus === 'failed') statusLabel = '조회실패·기존유지';
+
+          const hoverEle = (hasDemPreview && state.demPreviewData.elevations[low] !== null)
+            ? state.demPreviewData.elevations[low]
+            : (hoverPt.ele || 0);
+
           document.getElementById('chartHoverCoord').textContent =
-            `#${low + 1} | ${(cumDist[low]/1000).toFixed(2)}km | 고도: ${(hoverPt.ele || 0).toFixed(1)}m | (${hoverPt.lat.toFixed(5)}, ${hoverPt.lon.toFixed(5)})`;
+            `#${low + 1} | ${(cumDist[low]/1000).toFixed(2)}km | 고도: ${hoverEle.toFixed(1)}m [${statusLabel}] | (${hoverPt.lat.toFixed(5)}, ${hoverPt.lon.toFixed(5)})`;
         }
       };
 
@@ -2676,6 +2924,14 @@
       state.originalPoints = JSON.parse(JSON.stringify(points));
       state.currentPoints = JSON.parse(JSON.stringify(points));
       state.originalElevations = points.map(p => p.ele);
+      state.demMeasuredElevations = new Array(points.length).fill(null);
+      state.demInterpolatedElevations = new Array(points.length).fill(null);
+      state.elevationSource = 'Original GPX';
+      state.elevationStatuses = new Array(points.length).fill('original');
+      state.currentPoints.forEach(p => {
+        p.eleStatus = 'original';
+        p.eleSource = 'Original GPX';
+      });
       state.gpxMetadata.name = name;
 
       // 트레일 키워드 2차 확인
@@ -2851,7 +3107,20 @@
      */
     async function fetchDemElevations(points, source = 'open-elevation', samplingMode = 'adaptive', onProgress = null) {
       if (!points || points.length === 0) {
-        return { elevations: [], successCount: 0, failedCount: 0, sourceName: 'DEM', resolution: '30m' };
+        return {
+          elevations: [],
+          measuredElevations: [],
+          interpolatedElevations: [],
+          statuses: [],
+          measuredIndices: [],
+          successCount: 0,
+          failedCount: 0,
+          measuredCount: 0,
+          interpolatedCount: 0,
+          sampleInterval: 0,
+          sourceName: 'DEM',
+          resolution: '30m'
+        };
       }
 
       let sourceName = 'Open-Elevation';
@@ -2870,10 +3139,15 @@
 
       const totalCount = points.length;
       let elevations = new Array(totalCount).fill(null);
+      let measuredElevations = new Array(totalCount).fill(null);
+      let interpolatedElevations = new Array(totalCount).fill(null);
+      let statuses = new Array(totalCount).fill('original');
+      let measuredIndices = [];
       let successCount = 0;
       let failedCount = 0;
+      let sampleInterval = 0;
 
-      // 1. 적응형 지형 보간 (Adaptive Sampling): 100개 초과 시 대표 노드 100개 샘플링 후 지형 보간
+      // 1. 적응형 지형 보간 (Adaptive Sampling): 100개 초과 시 대표 노드 96개 샘플링 후 지형 보간
       if (samplingMode === 'adaptive' && totalCount > 100) {
         if (onProgress) onProgress(0.1);
         
@@ -2937,6 +3211,15 @@
 
         // 보간 처리 (Interpolation)
         if (sampleElevations.length === sampleIndices.length && sampleElevations.some(e => e !== null && e !== undefined)) {
+          measuredIndices = [...sampleIndices];
+
+          // 샘플 간 평균 거리 계산
+          let totalSampleDist = 0;
+          for (let i = 1; i < sampleIndices.length; i++) {
+            totalSampleDist += haversineDistance(points[sampleIndices[i-1]], points[sampleIndices[i]]);
+          }
+          sampleInterval = totalSampleDist / (sampleIndices.length - 1);
+
           // 샘플 포인트별 고도 매핑
           for (let s = 0; s < sampleIndices.length - 1; s++) {
             const idxA = sampleIndices[s];
@@ -2950,19 +3233,31 @@
             for (let i = idxA; i <= idxB; i++) {
               if (i === idxA) {
                 elevations[i] = eleA;
+                measuredElevations[i] = eleA;
+                interpolatedElevations[i] = eleA;
+                statuses[i] = 'measured';
               } else if (i === idxB) {
                 elevations[i] = eleB;
+                measuredElevations[i] = eleB;
+                interpolatedElevations[i] = eleB;
+                statuses[i] = 'measured';
               } else {
                 const ratio = (cumDist[i] - distA) / distSpan;
-                elevations[i] = Math.round((eleA + (eleB - eleA) * ratio) * 10) / 10;
+                const interpVal = Math.round((eleA + (eleB - eleA) * ratio) * 10) / 10;
+                elevations[i] = interpVal;
+                measuredElevations[i] = null; // 직접 측정값 아님
+                interpolatedElevations[i] = interpVal;
+                statuses[i] = 'interpolated';
               }
             }
           }
+
           // 전체 성공 카운트
           elevations.forEach((ele, idx) => {
             if (ele !== null && !isNaN(ele)) successCount++;
             else {
               elevations[idx] = points[idx].ele;
+              statuses[idx] = 'failed';
               failedCount++;
             }
           });
@@ -2970,6 +3265,7 @@
           // 조회 실패 시 기존 고도 100% 보존
           for (let i = 0; i < totalCount; i++) {
             elevations[i] = points[i].ele;
+            statuses[i] = 'failed';
             failedCount++;
           }
         }
@@ -3017,10 +3313,16 @@
               const globalIdx = chunk.start + i;
               const ele = chunkEles[i];
               if (ele !== null && ele !== undefined && !isNaN(ele)) {
-                elevations[globalIdx] = Math.round(ele * 10) / 10;
+                const rounded = Math.round(ele * 10) / 10;
+                elevations[globalIdx] = rounded;
+                measuredElevations[globalIdx] = rounded;
+                interpolatedElevations[globalIdx] = rounded;
+                statuses[globalIdx] = 'measured';
+                measuredIndices.push(globalIdx);
                 successCount++;
               } else {
                 elevations[globalIdx] = chunk.points[i].ele;
+                statuses[globalIdx] = 'failed';
                 failedCount++;
               }
             }
@@ -3028,36 +3330,55 @@
             console.warn(`DEM chunk ${c} failed, preserving original elevations:`, err);
             for (let i = 0; i < chunk.points.length; i++) {
               elevations[chunk.start + i] = chunk.points[i].ele;
+              statuses[chunk.start + i] = 'failed';
               failedCount++;
             }
           }
 
           if (onProgress) onProgress((c + 1) / chunks.length);
-          // 요청 간 약간의 지연
           if (c < chunks.length - 1) {
             await new Promise(r => setTimeout(r, 150));
           }
         }
+
+        const stats = calculateStats(points);
+        sampleInterval = totalCount > 1 ? (stats.totalDist / (totalCount - 1)) : 0;
       }
 
       return {
         elevations,
+        measuredElevations,
+        interpolatedElevations,
+        statuses,
+        measuredIndices,
         successCount,
         failedCount,
+        measuredCount: measuredIndices.length,
+        interpolatedCount: totalCount - measuredIndices.length,
+        sampleInterval,
         sourceName,
-        resolution
+        resolution,
+        samplingMode
       };
     }
 
     /**
-     * DEM 고도와 기존 GPX 고도 비교 및 통계 계산
+     * DEM 고도와 기존 GPX 고도 비교 및 분리 통계 계산
      */
-    function computeDemElevationStats(points, demElevations, sourceName, resolution) {
-      const origStats = calculateStats(points);
-      const tempNewPoints = points.map((p, idx) => ({ ...p, ele: demElevations[idx] }));
-      const newStats = calculateStats(tempNewPoints);
+    function computeDemElevationStats(points, demResult, sourceName, resolution) {
+      const origEles = points.map(p => p.ele ?? 0);
+      const origPureGainLoss = calculateElevationGainLoss(origEles, 0);
+      const origFilteredGainLoss = calculateElevationGainLoss(origEles, 1);
 
-      const diffs = demElevations.map((demEle, idx) => {
+      // DEM 직접 조회 지점 통계
+      const measuredStats = calculateMeasuredSampleStats(points, demResult.measuredIndices, demResult.measuredElevations);
+
+      // DEM 보간 추정 프로파일 D+ / D-
+      const interpGainLoss = calculateElevationGainLoss(demResult.interpolatedElevations, 0);
+      const deltaInterpGain = interpGainLoss.gain - origPureGainLoss.gain;
+      const deltaInterpLoss = interpGainLoss.loss - origPureGainLoss.loss;
+
+      const diffs = demResult.elevations.map((demEle, idx) => {
         const origEle = points[idx].ele ?? 0;
         const targetEle = demEle ?? origEle;
         return Math.abs(targetEle - origEle);
@@ -3067,23 +3388,28 @@
       const maxDiff = Math.max(...diffs, 0);
 
       const origAvgEle = points.reduce((a, p) => a + (p.ele ?? 0), 0) / (points.length || 1);
-      const newAvgEle = demElevations.reduce((a, e) => a + (e ?? 0), 0) / (demElevations.length || 1);
+      const newAvgEle = demResult.elevations.reduce((a, e) => a + (e ?? 0), 0) / (demResult.elevations.length || 1);
 
       // 50m 이상 급격한 변화(스파이크) 감지
       const spikeCount = diffs.filter(d => d >= 50).length;
 
-      const deltaGain = newStats.gain - origStats.gain;
-      const deltaLoss = newStats.loss - origStats.loss;
-
       return {
-        origStats,
-        newStats,
+        origPureGain: origPureGainLoss.gain,
+        origPureLoss: origPureGainLoss.loss,
+        origFilteredGain: origFilteredGainLoss.gain,
+        origFilteredLoss: origFilteredGainLoss.loss,
+        measuredSampleCount: measuredStats.count,
+        measuredSampleGain: measuredStats.gain,
+        measuredSampleLoss: measuredStats.loss,
+        measuredSampleInterval: measuredStats.avgInterval,
+        interpGain: interpGainLoss.gain,
+        interpLoss: interpGainLoss.loss,
+        deltaInterpGain,
+        deltaInterpLoss,
         origAvgEle,
         newAvgEle,
         avgDiff,
         maxDiff,
-        deltaGain,
-        deltaLoss,
         spikeCount,
         sourceName,
         resolution
@@ -3139,7 +3465,7 @@
           progressPercent.textContent = `${pct}%`;
         });
 
-        // 전체 currentPoints 기준의 elevations 배열 완성
+        // 전체 currentPoints 기준의 elevations, measuredElevations, interpolatedElevations, statuses 배열 완성
         const fullElevations = state.currentPoints.map((p, idx) => {
           if (idx >= startIdx && idx <= endIdx) {
             return result.elevations[idx - startIdx];
@@ -3147,11 +3473,36 @@
           return p.ele;
         });
 
-        const stats = computeDemElevationStats(targetSlice, result.elevations, result.sourceName, result.resolution);
+        const fullMeasuredElevations = state.currentPoints.map((p, idx) => {
+          if (idx >= startIdx && idx <= endIdx) {
+            return result.measuredElevations[idx - startIdx];
+          }
+          return null;
+        });
+
+        const fullInterpolatedElevations = state.currentPoints.map((p, idx) => {
+          if (idx >= startIdx && idx <= endIdx) {
+            return result.interpolatedElevations[idx - startIdx];
+          }
+          return p.ele;
+        });
+
+        const fullStatuses = state.currentPoints.map((p, idx) => {
+          if (idx >= startIdx && idx <= endIdx) {
+            return result.statuses[idx - startIdx];
+          }
+          return (p.eleStatus || 'original');
+        });
+
+        const stats = computeDemElevationStats(targetSlice, result, result.sourceName, result.resolution);
 
         // state에 검토 대기 데이터 저장
         state.demPreviewData = {
           elevations: fullElevations,
+          measuredElevations: fullMeasuredElevations,
+          interpolatedElevations: fullInterpolatedElevations,
+          statuses: fullStatuses,
+          measuredIndices: result.measuredIndices.map(i => i + startIdx),
           targetSlice,
           startIdx,
           endIdx,
@@ -3165,21 +3516,45 @@
         card.style.display = 'block';
 
         document.getElementById('demReviewSourceTag').textContent = `${result.sourceName} (${result.resolution})`;
-        document.getElementById('demOrigEleBadge').textContent = `${stats.origAvgEle.toFixed(1)} m`;
-        document.getElementById('demNewEleBadge').textContent = `${stats.newAvgEle.toFixed(1)} m`;
+        document.getElementById('demMetaSource').textContent = `${result.sourceName} (${result.resolution})`;
+        
+        const successRate = targetSlice.length > 0 ? ((result.successCount / targetSlice.length) * 100).toFixed(1) : '100.0';
+        document.getElementById('demSuccessRate').textContent = `${successRate}%`;
+        document.getElementById('demMeasuredPtCount').textContent = result.measuredCount.toLocaleString();
+        document.getElementById('demSampleInterval').textContent = Math.round(result.sampleInterval).toLocaleString();
+        document.getElementById('demInterpPtCount').textContent = result.interpolatedCount.toLocaleString();
+
+        // 1. 원본 GPX D+ / D-
+        document.getElementById('demOrigPureGain').textContent = `${Math.round(stats.origPureGain)}m`;
+        document.getElementById('demOrigPureLoss').textContent = `${Math.round(stats.origPureLoss)}m`;
+        document.getElementById('demOrigFilteredGain').textContent = `${Math.round(stats.origFilteredGain)}m`;
+        document.getElementById('demOrigFilteredLoss').textContent = `${Math.round(stats.origFilteredLoss)}m`;
+
+        // 2. DEM 직접 조회 지점 통계
+        document.getElementById('demMeasuredSampleCount').textContent = stats.measuredSampleCount.toLocaleString();
+        document.getElementById('demMeasuredSampleGain').textContent = `${Math.round(stats.measuredSampleGain)}m`;
+        document.getElementById('demMeasuredSampleLoss').textContent = `${Math.round(stats.measuredSampleLoss)}m`;
+
+        // 3. DEM 보간 프로파일 D+
+        document.getElementById('demInterpGain').textContent = `${Math.round(stats.interpGain)}m`;
+        document.getElementById('demInterpLoss').textContent = `${Math.round(stats.interpLoss)}m`;
+        const gainDiffSign = stats.deltaInterpGain >= 0 ? '+' : '';
+        const gainPct = stats.origPureGain > 0 ? ((stats.deltaInterpGain / stats.origPureGain) * 100).toFixed(1) : 0;
+        document.getElementById('demDeltaGainBadge').textContent = `변화 ${gainDiffSign}${Math.round(stats.deltaInterpGain)}m (${gainDiffSign}${gainPct}%)`;
+        const lossDiffSign = stats.deltaInterpLoss >= 0 ? '+' : '';
+        document.getElementById('demDeltaLossBadge').textContent = `변화 ${lossDiffSign}${Math.round(stats.deltaInterpLoss)}m`;
+
+        // 표고 오차
         document.getElementById('demAvgDiffBadge').textContent = `${stats.avgDiff.toFixed(1)} m`;
         document.getElementById('demMaxDiffBadge').textContent = `${stats.maxDiff.toFixed(1)} m`;
 
-        const gainSign = stats.deltaGain >= 0 ? '+' : '';
-        const gainPct = stats.origStats.gain > 0 ? ((stats.deltaGain / stats.origStats.gain) * 100).toFixed(1) : 0;
-        document.getElementById('demDeltaGainBadge').textContent = `${gainSign}${Math.round(stats.deltaGain)} m (${gainSign}${gainPct}%)`;
-
-        const lossSign = stats.deltaLoss >= 0 ? '+' : '';
-        const lossPct = stats.origStats.loss > 0 ? ((stats.deltaLoss / stats.origStats.loss) * 100).toFixed(1) : 0;
-        document.getElementById('demDeltaLossBadge').textContent = `${lossSign}${Math.round(stats.deltaLoss)} m (${lossSign}${lossPct}%)`;
-
         document.getElementById('demSuccessCount').textContent = result.successCount.toLocaleString();
         document.getElementById('demFailedCount').textContent = result.failedCount.toLocaleString();
+
+        const notice = document.getElementById('demInterpolationNotice');
+        if (notice) {
+          notice.style.display = result.samplingMode === 'adaptive' ? 'block' : 'none';
+        }
 
         const spikeAlert = document.getElementById('demSpikeAlert');
         if (stats.spikeCount > 0) {
@@ -3189,7 +3564,7 @@
           spikeAlert.style.display = 'none';
         }
 
-        // 고도 차트에 DEM 미리보기 점선 렌더링
+        // 고도 차트에 DEM 미리보기 실선/점선/원형마커 렌더링
         renderElevationChart();
 
         showToast(`DEM 고도 조회가 완료되었습니다. 고도 프로파일과 통계를 확인 후 승인해주세요.`);
@@ -3213,19 +3588,25 @@
 
       pushHistory(`DEM 고도 갱신 적용 (${state.demPreviewData.stats.sourceName})`);
 
-      const { elevations, startIdx, endIdx } = state.demPreviewData;
+      const { elevations, measuredElevations, interpolatedElevations, statuses, startIdx, endIdx } = state.demPreviewData;
       for (let i = startIdx; i <= endIdx; i++) {
         if (elevations[i] !== null && elevations[i] !== undefined) {
           state.currentPoints[i].ele = elevations[i];
+          state.currentPoints[i].eleStatus = statuses[i];
+          state.currentPoints[i].eleSource = state.demPreviewData.result.sourceName;
+          state.elevationStatuses[i] = statuses[i];
+          state.demMeasuredElevations[i] = measuredElevations[i];
+          state.demInterpolatedElevations[i] = interpolatedElevations[i];
         }
       }
 
+      state.elevationSource = state.demPreviewData.result.sourceName;
       const appliedStats = state.demPreviewData.stats;
       state.demPreviewData = null;
       document.getElementById('demReviewCard').style.display = 'none';
 
       renderAll();
-      showToast(`DEM 고도가 승인되어 성공적으로 반영되었습니다. (D+ ${appliedStats.deltaGain >= 0 ? '+' : ''}${Math.round(appliedStats.deltaGain)}m)`);
+      showToast(`DEM 고도가 승인되어 성공적으로 반영되었습니다. (보간 추정 D+ ${Math.round(appliedStats.interpGain)}m)`);
     });
 
     // DEM 고도 취소
@@ -3248,8 +3629,14 @@
         } else if (state.originalPoints[idx] && state.originalPoints[idx].ele !== undefined) {
           p.ele = state.originalPoints[idx].ele;
         }
+        p.eleStatus = 'original';
+        p.eleSource = 'Original GPX';
+        if (state.elevationStatuses) state.elevationStatuses[idx] = 'original';
+        if (state.demMeasuredElevations) state.demMeasuredElevations[idx] = null;
+        if (state.demInterpolatedElevations) state.demInterpolatedElevations[idx] = null;
       });
 
+      state.elevationSource = 'Original GPX';
       state.demPreviewData = null;
       document.getElementById('demReviewCard').style.display = 'none';
       renderAll();
