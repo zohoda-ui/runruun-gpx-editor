@@ -1,0 +1,224 @@
+[
+  {
+    "testCase": {
+      "id": "incheon_full",
+      "name": "인천마라톤 대용량 GPX",
+      "path": "/Users/admin/Desktop/보정/인천마라톤_최초원본.gpx"
+    },
+    "load": {
+      "success": true,
+      "pointsCount": 13671,
+      "segCount": 1,
+      "origDistKm": "40.56",
+      "startEle": 13.6,
+      "endEle": 20.4,
+      "hasTime": false
+    },
+    "match": {
+      "totalTimeMs": 8389,
+      "totalChunks": 55,
+      "successChunks": 28,
+      "failedChunks": 27,
+      "avgConfidence": 50.9,
+      "matchedCount": 760,
+      "origSegCount": 1,
+      "matchedSegCount": 1,
+      "segsPreserved": true,
+      "maxBoundaryJumpM": 38.7,
+      "deltaDistM": 5.1,
+      "deltaRatioPercent": 0.01,
+      "matchedStartEle": 13.6,
+      "matchedEndEle": 20.4,
+      "isBlocked": false,
+      "isApplyDisabled": false,
+      "issues": [
+        "청크 접합부에서 20m를 초과하는 경계 점프(7곳)가 감지되어 검토가 권장됩니다."
+      ]
+    },
+    "consoleErrors": 0
+  },
+  {
+    "testCase": {
+      "id": "suncheon_100k",
+      "name": "순천만 100K 장거리 GPX",
+      "path": "/Users/admin/Desktop/gpx-road/suncheon_bay_ultra.gpx"
+    },
+    "load": {
+      "success": true,
+      "pointsCount": 3902,
+      "segCount": 1,
+      "origDistKm": "103.20",
+      "startEle": 14.800000190734863,
+      "endEle": 15.800000190734863,
+      "hasTime": true
+    },
+    "match": {
+      "totalTimeMs": 28367,
+      "totalChunks": 200,
+      "successChunks": 128,
+      "failedChunks": 72,
+      "avgConfidence": 64,
+      "matchedCount": 3481,
+      "origSegCount": 1,
+      "matchedSegCount": 1,
+      "segsPreserved": true,
+      "maxBoundaryJumpM": 50.9,
+      "deltaDistM": -447.5,
+      "deltaRatioPercent": -0.43,
+      "matchedStartEle": 14.8,
+      "matchedEndEle": 15.8,
+      "isBlocked": false,
+      "isApplyDisabled": false,
+      "issues": [
+        "청크 접합부에서 20m를 초과하는 경계 점프(5곳)가 감지되어 검토가 권장됩니다."
+      ]
+    },
+    "consoleErrors": 0
+  },
+  {
+    "testCase": {
+      "id": "cheonglyang_15k",
+      "name": "청량산 15K 다중 trkseg GPX",
+      "path": "/Users/admin/Desktop/gpx/cheonglyangsan_15k.gpx"
+    },
+    "load": {
+      "success": true,
+      "pointsCount": 11401,
+      "segCount": 168,
+      "origDistKm": "14.88",
+      "startEle": 193,
+      "endEle": 221,
+      "hasTime": true
+    },
+    "match": {
+      "totalTimeMs": 38464,
+      "totalChunks": 171,
+      "successChunks": 11,
+      "failedChunks": 160,
+      "avgConfidence": 6.4,
+      "matchedCount": 791,
+      "origSegCount": 168,
+      "matchedSegCount": 168,
+      "segsPreserved": true,
+      "maxBoundaryJumpM": 0,
+      "deltaDistM": -199.3,
+      "deltaRatioPercent": -1.34,
+      "matchedStartEle": 193,
+      "matchedEndEle": 221,
+      "isBlocked": false,
+      "isApplyDisabled": false,
+      "issues": [
+        "전체 거리 변화율이 ±1%를 초과(1.3%)하여 사용자 확인이 필요합니다."
+      ]
+    },
+    "consoleErrors": 153
+  },
+  {
+    "testCase": {
+      "id": "seoul_mbn",
+      "name": "2025 MBN 서울 도심 마라톤 GPX",
+      "path": "/Users/admin/Desktop/gpx-road/2025mbnseoul.gpx"
+    },
+    "load": {
+      "success": true,
+      "pointsCount": 2306,
+      "segCount": 1,
+      "origDistKm": "21.08",
+      "startEle": 30.52,
+      "endEle": 13.96,
+      "hasTime": false
+    },
+    "match": {
+      "totalTimeMs": 3699,
+      "totalChunks": 21,
+      "successChunks": 12,
+      "failedChunks": 9,
+      "avgConfidence": 57.1,
+      "matchedCount": 440,
+      "origSegCount": 1,
+      "matchedSegCount": 1,
+      "segsPreserved": true,
+      "maxBoundaryJumpM": 0,
+      "deltaDistM": 103.5,
+      "deltaRatioPercent": 0.49,
+      "matchedStartEle": 30.5,
+      "matchedEndEle": 14,
+      "isBlocked": false,
+      "isApplyDisabled": false,
+      "issues": []
+    },
+    "consoleErrors": 153
+  },
+  {
+    "testCase": {
+      "id": "siheung_half",
+      "name": "시흥 하프 마라톤 GPX",
+      "path": "/Users/admin/Desktop/gpx-road/siheung_half_marathon.gpx"
+    },
+    "load": {
+      "success": true,
+      "pointsCount": 4242,
+      "segCount": 1,
+      "origDistKm": "21.11",
+      "startEle": 1,
+      "endEle": 1,
+      "hasTime": false
+    },
+    "match": {
+      "totalTimeMs": 2505,
+      "totalChunks": 18,
+      "successChunks": 9,
+      "failedChunks": 9,
+      "avgConfidence": 50,
+      "matchedCount": 220,
+      "origSegCount": 1,
+      "matchedSegCount": 1,
+      "segsPreserved": true,
+      "maxBoundaryJumpM": 0,
+      "deltaDistM": -2.2,
+      "deltaRatioPercent": -0.01,
+      "matchedStartEle": 1,
+      "matchedEndEle": 1,
+      "isBlocked": false,
+      "isApplyDisabled": false,
+      "issues": []
+    },
+    "consoleErrors": 153
+  },
+  {
+    "testCase": {
+      "id": "chuncheon_full",
+      "name": "춘천마라톤 풀코스 GPX",
+      "path": "/Users/admin/Desktop/gpx-road/chuncheon_full.gpx"
+    },
+    "load": {
+      "success": true,
+      "pointsCount": 10780,
+      "segCount": 1,
+      "origDistKm": "42.47",
+      "startEle": 73.6,
+      "endEle": 77.8,
+      "hasTime": true
+    },
+    "match": {
+      "totalTimeMs": 8298,
+      "totalChunks": 63,
+      "successChunks": 38,
+      "failedChunks": 25,
+      "avgConfidence": 60.3,
+      "matchedCount": 1032,
+      "origSegCount": 1,
+      "matchedSegCount": 1,
+      "segsPreserved": true,
+      "maxBoundaryJumpM": 0,
+      "deltaDistM": -94.1,
+      "deltaRatioPercent": -0.22,
+      "matchedStartEle": 73.6,
+      "matchedEndEle": 77.8,
+      "isBlocked": false,
+      "isApplyDisabled": false,
+      "issues": []
+    },
+    "consoleErrors": 153
+  }
+]

@@ -480,13 +480,391 @@
     };
   }
 
+  // =========================================================================
+  // RunRuun OSRM Match Stabilization Core (Phase 1, 2, 3)
+  // =========================================================================
+
+  const MATCH_SAFETY_THRESHOLDS = {
+    MAX_BOUNDARY_JUMP_REVIEW_M: 20.0,   // 20m 초과: 검토 경고
+    MAX_BOUNDARY_JUMP_BLOCK_M: 80.0,    // 80m 초과: 자동 적용 차단 (위험)
+    MAX_CHUNK_DETOUR_RATIO: 1.35,       // 원본 청크 대비 35% 초과 우회 시 원본 유지
+    MAX_CHUNK_OFFSET_M: 60.0,           // 원본 청크 중심 대비 60m 초과 이격 시 원본 유지
+    MAX_TOTAL_DIST_DELTA_RATIO: 1.0,    // 전체 거리 변화 ±1% 초과 시 확인 필요
+    BLOCK_TRKSEG_CHANGE: true           // 세그먼트 구조 변경 시 자동 적용 차단
+  };
+
+  /**
+   * Helper: Calculate polyline distance in meters
+   */
+  function calculatePolylineDist(coords) {
+    let d = 0;
+    for (let i = 1; i < coords.length; i++) {
+      d += haversineM(
+        { lon: coords[i - 1][0], lat: coords[i - 1][1] },
+        { lon: coords[i][0], lat: coords[i][1] }
+      );
+    }
+    return d;
+  }
+
+  /**
+   * Phase 1: Match single segment with OVERLAP=2 and Boundary Jump Protection
+   */
+  async function matchSingleSegment(segmentPoints, profile = 'driving', options = {}) {
+    const signal = options.signal || null;
+    const baseUrl = options.baseUrl || 'https://router.project-osrm.org';
+    const concurrency = options.concurrency || 2;
+
+    if (segmentPoints.length < 3) {
+      // Trivial segment (N < 3): keep exactly as-is
+      return {
+        matchedPoints: segmentPoints.map(p => Object.assign({}, p)),
+        boundaryJumps: [],
+        totalChunks: 0,
+        successChunks: 0,
+        failedChunks: 0
+      };
+    }
+
+    // 1. Simplify only within this segment
+    const preRes = simplifyPointsForMatching(segmentPoints, {
+      epsilonMeters: options.epsilonMeters || 2.5,
+      maxGapMeters: options.maxGapMeters || 200.0
+    });
+    const simplified = preRes.simplifiedPoints;
+
+    if (simplified.length < 2) {
+      return {
+        matchedPoints: segmentPoints.map(p => Object.assign({}, p)),
+        boundaryJumps: [],
+        totalChunks: 0,
+        successChunks: 0,
+        failedChunks: 0
+      };
+    }
+
+    // 2. Chunking with OVERLAP = 2
+    const CHUNK_SIZE = 10;
+    const OVERLAP = 2; // Share 2 points between consecutive chunks
+    const chunks = [];
+    for (let i = 0; i < simplified.length; i += (CHUNK_SIZE - OVERLAP)) {
+      const slice = simplified.slice(i, i + CHUNK_SIZE);
+      if (slice.length >= 2) {
+        chunks.push(slice);
+      }
+      if (i + CHUNK_SIZE >= simplified.length) break;
+    }
+
+    if (chunks.length === 0) {
+      return {
+        matchedPoints: segmentPoints.map(p => Object.assign({}, p)),
+        boundaryJumps: [],
+        totalChunks: 0,
+        successChunks: 0,
+        failedChunks: 0
+      };
+    }
+
+    // 3. Worker Pool OSRM fetching
+    const chunkResults = new Array(chunks.length);
+    let successCount = 0;
+    let failedCount = 0;
+
+    async function fetchOneChunk(chunk, idx) {
+      if (signal && signal.aborted) {
+        throw new Error("작업이 사용자에 의해 취소되었습니다.");
+      }
+
+      const coordsStr = chunk.map(p => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
+      const radiusesStr = chunk.map(() => '25').join(';');
+      const url = `${baseUrl}/match/v1/${profile}/${coordsStr}?overview=full&geometries=geojson&steps=false&radiuses=${radiusesStr}`;
+
+      const origChunkCoords = chunk.map(p => [p.lon, p.lat]);
+      const origChunkDist = calculatePolylineDist(origChunkCoords);
+      const midOrig = chunk[Math.floor(chunk.length / 2)];
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const resp = await fetch(url, { headers: { 'Accept': 'application/json' }, signal });
+          if (!resp.ok) {
+            if (resp.status >= 500 && attempt < 2) {
+              await new Promise(r => setTimeout(r, 200 * (attempt + 1)));
+              continue;
+            }
+            return { success: false, coords: origChunkCoords, isFallback: true };
+          }
+          const data = await resp.json();
+          if (data.code !== 'Ok' || !data.matchings || data.matchings.length === 0) {
+            return { success: false, coords: origChunkCoords, isFallback: true };
+          }
+
+          const matchedCoords = [];
+          data.matchings.forEach(m => {
+            if (m.geometry && m.geometry.coordinates) {
+              matchedCoords.push(...m.geometry.coordinates);
+            }
+          });
+
+          if (matchedCoords.length < 2) {
+            return { success: false, coords: origChunkCoords, isFallback: true };
+          }
+
+          // Detour Validation:
+          // A. Distance expansion test: check if matched length is significantly longer than original
+          const matchedChunkDist = calculatePolylineDist(matchedCoords);
+          const isDistDetour = matchedChunkDist > origChunkDist * MATCH_SAFETY_THRESHOLDS.MAX_CHUNK_DETOUR_RATIO && (matchedChunkDist - origChunkDist) > 80.0;
+
+          // B. Offset test: check if matched midpoint is too far from original midpoint
+          const midMatched = matchedCoords[Math.floor(matchedCoords.length / 2)];
+          const offsetDist = haversineM(midOrig, { lon: midMatched[0], lat: midMatched[1] });
+          const isOffsetDetour = offsetDist > MATCH_SAFETY_THRESHOLDS.MAX_CHUNK_OFFSET_M;
+
+          if (isDistDetour || isOffsetDetour) {
+            // Detour or disconnection detected! Keep original coordinates
+            return { success: false, coords: origChunkCoords, isFallback: true, detourDetected: true };
+          }
+
+          return { success: true, coords: matchedCoords, isFallback: false };
+        } catch (e) {
+          if (signal && signal.aborted) throw e;
+          if (attempt < 2) {
+            await new Promise(r => setTimeout(r, 250 * (attempt + 1)));
+            continue;
+          }
+          return { success: false, coords: origChunkCoords, isFallback: true };
+        }
+      }
+      return { success: false, coords: origChunkCoords, isFallback: true };
+    }
+
+    let nextIdx = 0;
+    async function worker() {
+      while (nextIdx < chunks.length) {
+        if (signal && signal.aborted) break;
+        const curIdx = nextIdx++;
+        const res = await fetchOneChunk(chunks[curIdx], curIdx);
+        chunkResults[curIdx] = res;
+        if (res.success) successCount++; else failedCount++;
+        if (typeof options.onProgressChunk === 'function') {
+          options.onProgressChunk();
+        }
+      }
+    }
+
+    const workers = [];
+    const actualConc = Math.min(concurrency, chunks.length);
+    for (let w = 0; w < actualConc; w++) workers.push(worker());
+    await Promise.all(workers);
+
+    // 4. Stitch with Overlap Handoff Truncation (Eliminates Backtracking Loops & Seam Jumps)
+    const stitchedCoords = [];
+    const boundaryJumps = [];
+
+    for (let c = 0; c < chunks.length; c++) {
+      const curRes = chunkResults[c];
+      if (!curRes || !curRes.coords || curRes.coords.length === 0) continue;
+
+      if (stitchedCoords.length === 0) {
+        stitchedCoords.push(...curRes.coords);
+        continue;
+      }
+
+      const lastPt = {
+        lon: stitchedCoords[stitchedCoords.length - 1][0],
+        lat: stitchedCoords[stitchedCoords.length - 1][1]
+      };
+
+      // Find the closest point in curRes.coords within the overlap search window (up to first 12 points)
+      let minD = Infinity;
+      let bestIdx = 0;
+      const maxSearch = Math.min(curRes.coords.length, 12);
+
+      for (let k = 0; k < maxSearch; k++) {
+        const d = haversineM(lastPt, { lon: curRes.coords[k][0], lat: curRes.coords[k][1] });
+        if (d < minD) {
+          minD = d;
+          bestIdx = k;
+        }
+      }
+
+      // Check boundary jump
+      if (minD > MATCH_SAFETY_THRESHOLDS.MAX_BOUNDARY_JUMP_BLOCK_M) {
+        boundaryJumps.push({
+          chunkIndex: c,
+          jumpMeters: Math.round(minD * 10) / 10,
+          blocked: true,
+          coord: curRes.coords[0]
+        });
+      } else if (minD > MATCH_SAFETY_THRESHOLDS.MAX_BOUNDARY_JUMP_REVIEW_M) {
+        boundaryJumps.push({
+          chunkIndex: c,
+          jumpMeters: Math.round(minD * 10) / 10,
+          blocked: false,
+          coord: curRes.coords[0]
+        });
+      }
+
+      // Append from bestIdx + 1 onward to avoid overlapping backward jumps
+      const sliceToAppend = curRes.coords.slice(bestIdx + 1);
+      for (let k = 0; k < sliceToAppend.length; k++) {
+        const pt = sliceToAppend[k];
+        const last = stitchedCoords[stitchedCoords.length - 1];
+        const d = haversineM({ lon: last[0], lat: last[1] }, { lon: pt[0], lat: pt[1] });
+        if (d >= 1.0) {
+          stitchedCoords.push(pt);
+        }
+      }
+    }
+
+    // 5. Linear interpolation strictly within this segment
+    const segmentMatchedPoints = fastInterpolateElevations(segmentPoints, stitchedCoords);
+
+    return {
+      matchedPoints: segmentMatchedPoints,
+      boundaryJumps,
+      totalChunks: chunks.length,
+      successChunks: successCount,
+      failedChunks: failedCount
+    };
+  }
+
+  /**
+   * Phase 2 & 3: Master Stabilized Matcher with Segment Preservation & Safety Gates
+   */
+  async function matchPointsStabilized(pointsToMatch, profile = 'driving', options = {}) {
+    const tStartTotal = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+
+    if (!pointsToMatch || pointsToMatch.length === 0) {
+      return { matchedPoints: [], isBlocked: false, issues: [] };
+    }
+
+    // Group points by trkIdx & segIdx
+    const segmentMap = new Map();
+    const segmentOrder = [];
+
+    for (let i = 0; i < pointsToMatch.length; i++) {
+      const p = pointsToMatch[i];
+      const key = `${p.trkIdx ?? 0}_${p.segIdx ?? 0}`;
+      if (!segmentMap.has(key)) {
+        segmentMap.set(key, []);
+        segmentOrder.push({ key, trkIdx: p.trkIdx ?? 0, segIdx: p.segIdx ?? 0 });
+      }
+      segmentMap.get(key).push(p);
+    }
+
+    const origSegmentCount = segmentOrder.length;
+    let totalChunksAll = 0;
+    let successChunksAll = 0;
+    let failedChunksAll = 0;
+    const allBoundaryJumps = [];
+
+    let totalDoneChunks = 0;
+    const totalEstChunks = Math.max(1, Math.ceil(pointsToMatch.length / 8));
+
+    const finalMatchedPoints = [];
+
+    // Process each segment independently
+    for (let s = 0; s < segmentOrder.length; s++) {
+      const info = segmentOrder[s];
+      const segPts = segmentMap.get(info.key);
+
+      const segRes = await matchSingleSegment(segPts, profile, {
+        signal: options.signal,
+        baseUrl: options.baseUrl,
+        concurrency: options.concurrency || 2,
+        epsilonMeters: options.epsilonMeters || 2.5,
+        maxGapMeters: options.maxGapMeters || 200.0,
+        onProgressChunk: () => {
+          totalDoneChunks++;
+          if (typeof options.onProgress === 'function') {
+            options.onProgress({
+              completed: totalDoneChunks,
+              total: totalEstChunks,
+              percent: Math.min(99, Math.round((totalDoneChunks / totalEstChunks) * 100))
+            });
+          }
+        }
+      });
+
+      totalChunksAll += segRes.totalChunks;
+      successChunksAll += segRes.successChunks;
+      failedChunksAll += segRes.failedChunks;
+      allBoundaryJumps.push(...segRes.boundaryJumps);
+
+      // Guarantee trkIdx and segIdx preservation
+      segRes.matchedPoints.forEach(p => {
+        p.trkIdx = info.trkIdx;
+        p.segIdx = info.segIdx;
+        finalMatchedPoints.push(p);
+      });
+    }
+
+    const matchedSegmentSet = new Set(finalMatchedPoints.map(p => `${p.trkIdx}_${p.segIdx}`));
+    const matchedSegmentCount = matchedSegmentSet.size;
+    const segsPreserved = origSegmentCount === matchedSegmentCount;
+
+    // Safety Gate Checks
+    const issues = [];
+    let isBlocked = false;
+
+    // 1. Check for blocked boundary jumps (>80m at chunk seams)
+    const blockedJumps = allBoundaryJumps.filter(j => j.jumpMeters > MATCH_SAFETY_THRESHOLDS.MAX_BOUNDARY_JUMP_BLOCK_M);
+    if (blockedJumps.length > 0) {
+      issues.push(`청크 접합부에서 80m 이상의 비정상 점프(${blockedJumps.length}곳)가 감지되어 자동 적용이 차단됩니다.`);
+      isBlocked = true;
+    }
+
+    const reviewJumps = allBoundaryJumps.filter(j => j.jumpMeters > MATCH_SAFETY_THRESHOLDS.MAX_BOUNDARY_JUMP_REVIEW_M && j.jumpMeters <= MATCH_SAFETY_THRESHOLDS.MAX_BOUNDARY_JUMP_BLOCK_M);
+    if (reviewJumps.length > 0) {
+      issues.push(`청크 접합부에서 20m를 초과하는 경계 점프(${reviewJumps.length}곳)가 감지되어 검토가 권장됩니다.`);
+    }
+
+    // 2. Check for segment count mismatch
+    if (!segsPreserved && MATCH_SAFETY_THRESHOLDS.BLOCK_TRKSEG_CHANGE) {
+      issues.push(`trkseg 세그먼트 수가 변경되었습니다 (${matchedSegmentCount} vs ${origSegmentCount}). 자동 적용이 차단됩니다.`);
+      isBlocked = true;
+    }
+
+    // 3. Check for distance delta ratio
+    let origDist = 0, matchedDist = 0;
+    for (let i = 1; i < pointsToMatch.length; i++) origDist += haversineM(pointsToMatch[i - 1], pointsToMatch[i]);
+    for (let i = 1; i < finalMatchedPoints.length; i++) matchedDist += haversineM(finalMatchedPoints[i - 1], finalMatchedPoints[i]);
+    const deltaRatio = origDist > 0 ? Math.abs((matchedDist - origDist) / origDist) * 100 : 0;
+
+    if (deltaRatio > MATCH_SAFETY_THRESHOLDS.MAX_TOTAL_DIST_DELTA_RATIO) {
+      issues.push(`전체 거리 변화율이 ±1%를 초과(${deltaRatio.toFixed(1)}%)하여 사용자 확인이 필요합니다.`);
+    }
+
+    const tTotalMs = ((typeof performance !== 'undefined') ? performance.now() : Date.now()) - tStartTotal;
+
+    return {
+      matchedPoints: finalMatchedPoints,
+      origSegmentCount,
+      matchedSegmentCount,
+      segsPreserved,
+      totalChunks: totalChunksAll,
+      successChunks: successChunksAll,
+      failedChunks: failedChunksAll,
+      boundaryJumps: allBoundaryJumps,
+      residualUnsafeJumps,
+      isBlocked,
+      issues,
+      timings: {
+        totalTimeMs: Math.round(tTotalMs)
+      }
+    };
+  }
+
   // Export module
   const OSRMOptimizer = {
     haversineM,
     simplifyPointsForMatching,
     decodePolyline,
     fastInterpolateElevations,
-    matchPointsOptimized
+    matchPointsOptimized,
+    matchSingleSegment,
+    matchPointsStabilized,
+    MATCH_SAFETY_THRESHOLDS
   };
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -496,3 +874,4 @@
     root.RunruunOSRMOptimizer = OSRMOptimizer;
   }
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));
+

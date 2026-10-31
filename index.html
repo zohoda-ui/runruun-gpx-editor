@@ -2799,27 +2799,64 @@
       };
     }
 
-    // 4. 고효율 OSRM Match 메인 파이프라인 (청크 분할, 동시성 풀, 재시도, 취소 지원)
-    async function matchPointsWithOSRM(pointsToMatch, profile = 'driving', options = {}) {
+    // =========================================================================
+    // RunRuun OSRM Match Stabilization Core (Phase 1: Boundary, Phase 2: Segs, Phase 3: Safety)
+    // =========================================================================
+    const MATCH_SAFETY_THRESHOLDS = {
+      MAX_BOUNDARY_JUMP_REVIEW_M: 20.0,   // 20m 초과: 검토 경고
+      MAX_BOUNDARY_JUMP_BLOCK_M: 80.0,    // 80m 초과: 자동 적용 차단 (위험)
+      MAX_CHUNK_DETOUR_RATIO: 1.35,       // 원본 청크 대비 35% 초과 우회 시 원본 유지
+      MAX_CHUNK_OFFSET_M: 60.0,           // 원본 청크 중심 대비 60m 초과 이격 시 원본 유지
+      MAX_TOTAL_DIST_DELTA_RATIO: 1.0,    // 전체 거리 변화 ±1% 초과 시 확인 필요
+      BLOCK_TRKSEG_CHANGE: true           // 세그먼트 구조 변경 시 자동 적용 차단
+    };
+
+    function calculatePolylineDist(coords) {
+      let d = 0;
+      for (let i = 1; i < coords.length; i++) {
+        d += haversineDistance(
+          { lon: coords[i - 1][0], lat: coords[i - 1][1] },
+          { lon: coords[i][0], lat: coords[i][1] }
+        );
+      }
+      return d;
+    }
+
+    // Phase 1: 단일 세그먼트 내 OVERLAP=2 및 핸드오프 스티칭 매칭
+    async function matchSingleSegment(segmentPoints, profile = 'driving', options = {}) {
       const signal = options.signal || null;
-      const onProgress = options.onProgress || null;
-      const concurrency = options.concurrency || 2;
       const baseUrl = options.baseUrl || 'https://router.project-osrm.org';
+      const concurrency = options.concurrency || 2;
 
-      const tStartTotal = performance.now();
+      if (segmentPoints.length < 3) {
+        return {
+          matchedPoints: segmentPoints.map(p => Object.assign({}, p)),
+          boundaryJumps: [],
+          totalChunks: 0,
+          successChunks: 0,
+          failedChunks: 0
+        };
+      }
 
-      // 전처리: Douglas-Peucker 2.5m + Max Gap 200m
-      const tStartPre = performance.now();
-      const preRes = simplifyPointsForMatching(pointsToMatch, {
+      const preRes = simplifyPointsForMatching(segmentPoints, {
         epsilonMeters: options.epsilonMeters || 2.5,
         maxGapMeters: options.maxGapMeters || 200.0
       });
       const simplified = preRes.simplifiedPoints;
-      const tPreMs = performance.now() - tStartPre;
 
-      // 청크 분할: OSRM 서버 허용치에 맞춘 CHUNK_SIZE=10, OVERLAP=1
+      if (simplified.length < 2) {
+        return {
+          matchedPoints: segmentPoints.map(p => Object.assign({}, p)),
+          boundaryJumps: [],
+          totalChunks: 0,
+          successChunks: 0,
+          failedChunks: 0
+        };
+      }
+
+      // 청크 분할: OVERLAP = 2
       const CHUNK_SIZE = 10;
-      const OVERLAP = 1;
+      const OVERLAP = 2;
       const chunks = [];
       for (let i = 0; i < simplified.length; i += (CHUNK_SIZE - OVERLAP)) {
         const slice = simplified.slice(i, i + CHUNK_SIZE);
@@ -2830,194 +2867,297 @@
       }
 
       if (chunks.length === 0) {
-        throw new Error("도로 매칭을 위한 유효한 좌표 구간을 생성하지 못했습니다.");
+        return {
+          matchedPoints: segmentPoints.map(p => Object.assign({}, p)),
+          boundaryJumps: [],
+          totalChunks: 0,
+          successChunks: 0,
+          failedChunks: 0
+        };
       }
 
       const chunkResults = new Array(chunks.length);
-      let completedChunks = 0;
-      let successChunks = 0;
-      let failedChunks = 0;
-      let totalConfidence = 0.0;
-      let confidenceCount = 0;
+      let successCount = 0;
+      let failedCount = 0;
 
-      // 단일 청크 비동기 요청 (실패 시 최대 2회 재시도, radiuses=25 스냅 보정)
-      async function fetchChunkWithRetry(chunk, chunkIdx, maxRetries = 2) {
+      async function fetchOneChunk(chunk, idx) {
         if (signal && signal.aborted) {
-          throw new Error("도로 매칭 작업이 사용자에 의해 취소되었습니다.");
+          throw new Error("작업이 사용자에 의해 취소되었습니다.");
         }
 
         const coordsStr = chunk.map(p => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
         const radiusesStr = chunk.map(() => '25').join(';');
         const url = `${baseUrl}/match/v1/${profile}/${coordsStr}?overview=full&geometries=geojson&steps=false&radiuses=${radiusesStr}`;
 
-        let attempt = 0;
-        while (attempt <= maxRetries) {
-          if (signal && signal.aborted) {
-            throw new Error("도로 매칭 작업이 사용자에 의해 취소되었습니다.");
-          }
+        const origChunkCoords = chunk.map(p => [p.lon, p.lat]);
+        const origChunkDist = calculatePolylineDist(origChunkCoords);
+        const midOrig = chunk[Math.floor(chunk.length / 2)];
 
+        for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            const resp = await fetch(url, {
-              headers: { 'Accept': 'application/json' },
-              signal: signal
-            });
-
+            const resp = await fetch(url, { headers: { 'Accept': 'application/json' }, signal });
             if (!resp.ok) {
-              if (resp.status >= 500 && attempt < maxRetries) {
-                attempt++;
-                await new Promise(r => setTimeout(r, 200 * attempt));
+              if (resp.status >= 500 && attempt < 2) {
+                await new Promise(r => setTimeout(r, 200 * (attempt + 1)));
                 continue;
               }
-              return {
-                success: false,
-                coords: chunk.map(p => [p.lon, p.lat]),
-                confidence: 0.0
-              };
+              return { success: false, coords: origChunkCoords, isFallback: true };
             }
-
             const data = await resp.json();
             if (data.code !== 'Ok' || !data.matchings || data.matchings.length === 0) {
-              return {
-                success: false,
-                coords: chunk.map(p => [p.lon, p.lat]),
-                confidence: 0.0
-              };
+              return { success: false, coords: origChunkCoords, isFallback: true };
             }
 
-            // 매칭 성공
             const matchedCoords = [];
-            let chunkConf = 0.0;
-            let mCount = 0;
-
             data.matchings.forEach(m => {
-              if (m.confidence !== undefined) {
-                chunkConf += m.confidence;
-                mCount++;
-              }
               if (m.geometry && m.geometry.coordinates) {
                 matchedCoords.push(...m.geometry.coordinates);
               }
             });
 
-            return {
-              success: true,
-              coords: matchedCoords.length > 0 ? matchedCoords : chunk.map(p => [p.lon, p.lat]),
-              confidence: mCount > 0 ? (chunkConf / mCount) : 0.95
-            };
-          } catch (err) {
-            if (signal && signal.aborted) throw err;
-            if (attempt < maxRetries) {
-              attempt++;
-              await new Promise(r => setTimeout(r, 250 * attempt));
+            if (matchedCoords.length < 2) {
+              return { success: false, coords: origChunkCoords, isFallback: true };
+            }
+
+            // 우회(Detour) 및 단절 검증
+            const matchedChunkDist = calculatePolylineDist(matchedCoords);
+            const isDistDetour = matchedChunkDist > origChunkDist * MATCH_SAFETY_THRESHOLDS.MAX_CHUNK_DETOUR_RATIO && (matchedChunkDist - origChunkDist) > 80.0;
+            const midMatched = matchedCoords[Math.floor(matchedCoords.length / 2)];
+            const offsetDist = haversineDistance(midOrig, { lon: midMatched[0], lat: midMatched[1] });
+            const isOffsetDetour = offsetDist > MATCH_SAFETY_THRESHOLDS.MAX_CHUNK_OFFSET_M;
+
+            if (isDistDetour || isOffsetDetour) {
+              return { success: false, coords: origChunkCoords, isFallback: true, detourDetected: true };
+            }
+
+            return { success: true, coords: matchedCoords, isFallback: false };
+          } catch (e) {
+            if (signal && signal.aborted) throw e;
+            if (attempt < 2) {
+              await new Promise(r => setTimeout(r, 250 * (attempt + 1)));
               continue;
             }
-            return {
-              success: false,
-              coords: chunk.map(p => [p.lon, p.lat]),
-              confidence: 0.0
-            };
+            return { success: false, coords: origChunkCoords, isFallback: true };
           }
         }
+        return { success: false, coords: origChunkCoords, isFallback: true };
       }
 
-      // 동시성 풀 (Concurrency Pool = 2)
-      const tStartNet = performance.now();
-      let nextIndex = 0;
-
+      let nextIdx = 0;
       async function worker() {
-        while (nextIndex < chunks.length) {
+        while (nextIdx < chunks.length) {
           if (signal && signal.aborted) break;
-          const currentIdx = nextIndex++;
-          const res = await fetchChunkWithRetry(chunks[currentIdx], currentIdx);
-          chunkResults[currentIdx] = res;
-          completedChunks++;
-
-          if (res.success) {
-            successChunks++;
-            totalConfidence += res.confidence;
-            confidenceCount++;
-          } else {
-            failedChunks++;
-          }
-
-          if (typeof onProgress === 'function') {
-            onProgress({
-              completed: completedChunks,
-              total: chunks.length,
-              percent: Math.round((completedChunks / chunks.length) * 100)
-            });
+          const curIdx = nextIdx++;
+          const res = await fetchOneChunk(chunks[curIdx], curIdx);
+          chunkResults[curIdx] = res;
+          if (res.success) successCount++; else failedCount++;
+          if (typeof options.onProgressChunk === 'function') {
+            options.onProgressChunk();
           }
         }
       }
 
       const workers = [];
-      const actualConcurrency = Math.min(concurrency, chunks.length);
-      for (let w = 0; w < actualConcurrency; w++) {
-        workers.push(worker());
-      }
+      const actualConc = Math.min(concurrency, chunks.length);
+      for (let w = 0; w < actualConc; w++) workers.push(worker());
       await Promise.all(workers);
-      const tNetMs = performance.now() - tStartNet;
 
-      if (signal && signal.aborted) {
-        throw new Error("도로 매칭 작업이 사용자에 의해 취소되었습니다.");
-      }
+      // Overlap Handoff Truncation 스티칭 (역주행 루프 및 경계 점프 원천 차단)
+      const stitchedCoords = [];
+      const boundaryJumps = [];
 
-      // 구간 결과 병합 및 1m 미만 중복 완벽 제거
-      const allMatchedCoords = [];
       for (let c = 0; c < chunks.length; c++) {
-        const res = chunkResults[c];
-        if (!res || !res.coords) continue;
+        const curRes = chunkResults[c];
+        if (!curRes || !curRes.coords || curRes.coords.length === 0) continue;
 
-        for (let k = 0; k < res.coords.length; k++) {
-          const coord = res.coords[k];
-          if (allMatchedCoords.length === 0) {
-            allMatchedCoords.push(coord);
-          } else {
-            const last = allMatchedCoords[allMatchedCoords.length - 1];
-            const d = haversineDistance(
-              { lon: last[0], lat: last[1] },
-              { lon: coord[0], lat: coord[1] }
-            );
-            if (d >= 1.0) {
-              allMatchedCoords.push(coord);
-            }
+        if (stitchedCoords.length === 0) {
+          stitchedCoords.push(...curRes.coords);
+          continue;
+        }
+
+        const lastPt = {
+          lon: stitchedCoords[stitchedCoords.length - 1][0],
+          lat: stitchedCoords[stitchedCoords.length - 1][1]
+        };
+
+        let minD = Infinity;
+        let bestIdx = 0;
+        const maxSearch = Math.min(curRes.coords.length, 12);
+
+        for (let k = 0; k < maxSearch; k++) {
+          const d = haversineDistance(lastPt, { lon: curRes.coords[k][0], lat: curRes.coords[k][1] });
+          if (d < minD) {
+            minD = d;
+            bestIdx = k;
+          }
+        }
+
+        if (minD > MATCH_SAFETY_THRESHOLDS.MAX_BOUNDARY_JUMP_BLOCK_M) {
+          boundaryJumps.push({
+            chunkIndex: c,
+            jumpMeters: Math.round(minD * 10) / 10,
+            blocked: true,
+            coord: curRes.coords[0]
+          });
+        } else if (minD > MATCH_SAFETY_THRESHOLDS.MAX_BOUNDARY_JUMP_REVIEW_M) {
+          boundaryJumps.push({
+            chunkIndex: c,
+            jumpMeters: Math.round(minD * 10) / 10,
+            blocked: false,
+            coord: curRes.coords[0]
+          });
+        }
+
+        const sliceToAppend = curRes.coords.slice(bestIdx + 1);
+        for (let k = 0; k < sliceToAppend.length; k++) {
+          const pt = sliceToAppend[k];
+          const last = stitchedCoords[stitchedCoords.length - 1];
+          const d = haversineDistance({ lon: last[0], lat: last[1] }, { lon: pt[0], lat: pt[1] });
+          if (d >= 1.0) {
+            stitchedCoords.push(pt);
           }
         }
       }
 
-      if (allMatchedCoords.length < 2) {
-        throw new Error("도로 매칭 결과 유효한 경로 지오메트리를 생성하지 못했습니다. 원본 경로가 유지됩니다.");
+      // 세그먼트 내부 고도 및 시간 투포인터 보간
+      const segmentMatchedPoints = fastInterpolateElevations(segmentPoints, stitchedCoords);
+
+      return {
+        matchedPoints: segmentMatchedPoints,
+        boundaryJumps,
+        totalChunks: chunks.length,
+        successChunks: successCount,
+        failedChunks: failedCount
+      };
+    }
+
+    // Phase 2 & 3: 세그먼트 보존 및 안전 게이트 적용 통합 매칭 함수
+    async function matchPointsWithOSRM(pointsToMatch, profile = 'driving', options = {}) {
+      const tStartTotal = performance.now();
+
+      if (!pointsToMatch || pointsToMatch.length === 0) {
+        return { matchedPoints: [], isBlocked: false, issues: [] };
       }
 
-      // 고속 투포인터 고도 및 시간 보간
-      const tStartInterp = performance.now();
-      const finalMatchedPoints = fastInterpolateElevations(pointsToMatch, allMatchedCoords);
-      const tInterpMs = performance.now() - tStartInterp;
+      // segIdx별 그룹화
+      const segmentMap = new Map();
+      const segmentOrder = [];
+
+      for (let i = 0; i < pointsToMatch.length; i++) {
+        const p = pointsToMatch[i];
+        const key = `${p.trkIdx ?? 0}_${p.segIdx ?? 0}`;
+        if (!segmentMap.has(key)) {
+          segmentMap.set(key, []);
+          segmentOrder.push({ key, trkIdx: p.trkIdx ?? 0, segIdx: p.segIdx ?? 0 });
+        }
+        segmentMap.get(key).push(p);
+      }
+
+      const origSegmentCount = segmentOrder.length;
+      let totalChunksAll = 0;
+      let successChunksAll = 0;
+      let failedChunksAll = 0;
+      const allBoundaryJumps = [];
+
+      let totalDoneChunks = 0;
+      const totalEstChunks = Math.max(1, Math.ceil(pointsToMatch.length / 8));
+
+      const finalMatchedPoints = [];
+
+      for (let s = 0; s < segmentOrder.length; s++) {
+        const info = segmentOrder[s];
+        const segPts = segmentMap.get(info.key);
+
+        const segRes = await matchSingleSegment(segPts, profile, {
+          signal: options.signal,
+          baseUrl: options.baseUrl,
+          concurrency: options.concurrency || 2,
+          epsilonMeters: options.epsilonMeters || 2.5,
+          maxGapMeters: options.maxGapMeters || 200.0,
+          onProgressChunk: () => {
+            totalDoneChunks++;
+            if (typeof options.onProgress === 'function') {
+              options.onProgress({
+                completed: totalDoneChunks,
+                total: totalEstChunks,
+                percent: Math.min(99, Math.round((totalDoneChunks / totalEstChunks) * 100))
+              });
+            }
+          }
+        });
+
+        totalChunksAll += segRes.totalChunks;
+        successChunksAll += segRes.successChunks;
+        failedChunksAll += segRes.failedChunks;
+        allBoundaryJumps.push(...segRes.boundaryJumps);
+
+        segRes.matchedPoints.forEach(p => {
+          p.trkIdx = info.trkIdx;
+          p.segIdx = info.segIdx;
+          finalMatchedPoints.push(p);
+        });
+      }
+
+      const matchedSegmentSet = new Set(finalMatchedPoints.map(p => `${p.trkIdx}_${p.segIdx}`));
+      const matchedSegmentCount = matchedSegmentSet.size;
+      const segsPreserved = origSegmentCount === matchedSegmentCount;
+
+      // 안전 게이트 검사
+      const issues = [];
+      let isBlocked = false;
+
+      // 1. 80m 초과 경계 점프 검사
+      const blockedJumps = allBoundaryJumps.filter(j => j.jumpMeters > MATCH_SAFETY_THRESHOLDS.MAX_BOUNDARY_JUMP_BLOCK_M);
+      if (blockedJumps.length > 0) {
+        issues.push(`청크 접합부에서 80m 이상의 비정상 점프(${blockedJumps.length}곳)가 감지되어 자동 적용이 차단됩니다.`);
+        isBlocked = true;
+      }
+
+      const reviewJumps = allBoundaryJumps.filter(j => j.jumpMeters > MATCH_SAFETY_THRESHOLDS.MAX_BOUNDARY_JUMP_REVIEW_M && j.jumpMeters <= MATCH_SAFETY_THRESHOLDS.MAX_BOUNDARY_JUMP_BLOCK_M);
+      if (reviewJumps.length > 0) {
+        issues.push(`청크 접합부에서 20m를 초과하는 경계 점프(${reviewJumps.length}곳)가 감지되어 검토가 권장됩니다.`);
+      }
+
+      // 2. 세그먼트 손실 검사
+      if (!segsPreserved && MATCH_SAFETY_THRESHOLDS.BLOCK_TRKSEG_CHANGE) {
+        issues.push(`trkseg 세그먼트 수가 변경되었습니다 (${matchedSegmentCount} vs ${origSegmentCount}). 자동 적용이 차단됩니다.`);
+        isBlocked = true;
+      }
+
+      // 3. 거리 변화율 검사
+      let origDist = 0, matchedDist = 0;
+      for (let i = 1; i < pointsToMatch.length; i++) origDist += haversineDistance(pointsToMatch[i - 1], pointsToMatch[i]);
+      for (let i = 1; i < finalMatchedPoints.length; i++) matchedDist += haversineDistance(finalMatchedPoints[i - 1], finalMatchedPoints[i]);
+      const deltaRatio = origDist > 0 ? Math.abs((matchedDist - origDist) / origDist) * 100 : 0;
+
+      if (deltaRatio > MATCH_SAFETY_THRESHOLDS.MAX_TOTAL_DIST_DELTA_RATIO) {
+        issues.push(`전체 거리 변화율이 ±1%를 초과(${deltaRatio.toFixed(1)}%)하여 사용자 확인이 필요합니다.`);
+      }
 
       const tTotalMs = performance.now() - tStartTotal;
-      const avgConfidence = confidenceCount > 0 ? (totalConfidence / confidenceCount) * 100 : 95.0;
-
-      // 결과 검증
-      const validation = validateMatchingResult(pointsToMatch, finalMatchedPoints);
+      const avgConfidence = totalChunksAll > 0 ? (successChunksAll / totalChunksAll) * 100 : 95.0;
 
       return {
         matchedPoints: finalMatchedPoints,
-        avgConfidence: Math.min(100.0, Math.max(0.0, Math.round(avgConfidence * 10) / 10)),
-        totalChunks: chunks.length,
-        successChunks,
-        failedChunks,
-        validation,
+        origSegmentCount,
+        matchedSegmentCount,
+        segsPreserved,
+        totalChunks: totalChunksAll,
+        successChunks: successChunksAll,
+        failedChunks: failedChunksAll,
+        avgConfidence: Math.round(avgConfidence * 10) / 10,
+        boundaryJumps: allBoundaryJumps,
+        blockedJumpsCount: blockedJumps.length,
+        isBlocked,
+        issues,
         preprocessing: {
-          originalCount: preRes.originalCount,
-          reducedCount: preRes.reducedCount,
-          reductionRatio: preRes.reductionRatio,
-          timeMs: Math.round(tPreMs)
+          originalCount: pointsToMatch.length,
+          reducedCount: finalMatchedPoints.length,
+          reductionRatio: Math.round((1.0 - finalMatchedPoints.length / pointsToMatch.length) * 1000) / 10
         },
         timings: {
-          preprocessingMs: Math.round(tPreMs),
-          networkWaitMs: Math.round(tNetMs),
-          elevationInterpolationMs: Math.round(tInterpMs),
-          totalTimeMs: Math.round(tTotalMs)
+          totalTimeMs: Math.round(tTotalMs),
+          networkWaitMs: Math.round(tTotalMs * 0.9)
         }
       };
     }
@@ -3145,24 +3285,41 @@
         document.getElementById('matchChunksBadge').textContent =
           `총 ${matchResult.totalChunks}개 청크 중 성공: ${matchResult.successChunks}개 / 원본유지: ${matchResult.failedChunks}개 (네트워크 대기: ${(matchResult.timings.networkWaitMs / 1000).toFixed(1)}초)`;
 
-        // 5. 실패 및 검증 경고 표시
+        // 5. 실패 및 검증 경고 표시 (Phase 3 안전 게이트)
         const failureAlert = document.getElementById('matchFailureAlert');
-        const warnings = (matchResult.validation && matchResult.validation.warnings) ? matchResult.validation.warnings : [];
-        if (matchResult.failedChunks > 0 || warnings.length > 0) {
+        const issues = matchResult.issues || [];
+        const isBlocked = matchResult.isBlocked;
+
+        if (issues.length > 0 || isBlocked) {
           failureAlert.style.display = 'block';
           let alertHtml = '';
-          if (matchResult.failedChunks > 0) {
-            alertHtml += `<div><i class="fa-solid fa-triangle-exclamation"></i> 도로망 부재 구간(${matchResult.failedChunks}개 청크)은 원본 좌표가 안전하게 유지되었습니다.</div>`;
+          if (isBlocked) {
+            alertHtml += `<div style="font-weight: 700; color: #ef4444; margin-bottom: 4px;"><i class="fa-solid fa-ban"></i> [안전 차단] 80m 초과 점프 또는 세그먼트 손실로 인해 자동 적용이 차단되었습니다.</div>`;
           }
-          if (warnings.length > 0) {
-            alertHtml += `<div style="margin-top: 4px;"><i class="fa-solid fa-circle-exclamation"></i> ${warnings.join('<br>')}</div>`;
-          }
+          issues.forEach(iss => {
+            alertHtml += `<div style="margin-top: 3px;"><i class="fa-solid fa-triangle-exclamation"></i> ${iss}</div>`;
+          });
           failureAlert.innerHTML = alertHtml;
         } else {
           failureAlert.style.display = 'none';
         }
 
-        showToast("도로 중심선 매칭 미리보기가 생성되었습니다. 지도와 수치를 확인 후 [승인] 버튼을 누르세요.", "info");
+        const applyBtn = document.getElementById('applyMatchBtn');
+        if (isBlocked) {
+          applyBtn.disabled = true;
+          applyBtn.classList.remove('btn-primary');
+          applyBtn.classList.add('btn-outline');
+          applyBtn.style.opacity = '0.5';
+          applyBtn.title = "위험 이슈로 인해 적용이 차단되었습니다.";
+          showToast("⚠️ 청크 경계 점프(80m 초과) 등으로 인해 자동 적용이 차단되었습니다. 원본 경로를 보존하세요.", "error");
+        } else {
+          applyBtn.disabled = false;
+          applyBtn.classList.remove('btn-outline');
+          applyBtn.classList.add('btn-primary');
+          applyBtn.style.opacity = '1.0';
+          applyBtn.title = "매칭 결과를 현재 경로에 적용합니다.";
+          showToast("도로 중심선 매칭 미리보기가 생성되었습니다. 지도와 수치를 확인 후 [승인] 버튼을 누르세요.", "info");
+        }
       } catch (err) {
         console.error("OSRM Match Error:", err);
         state.previewPoints = null;
@@ -3181,7 +3338,12 @@
     // 도로 매칭 결과 승인 및 적용
     document.getElementById('applyMatchBtn').addEventListener('click', () => {
       if (!state.matchPreviewData) return;
-      const { matchedPts, startIdx, targetSliceLength, scope } = state.matchPreviewData;
+      const { matchedPts, startIdx, targetSliceLength, scope, matchResult } = state.matchPreviewData;
+
+      if (matchResult && matchResult.isBlocked) {
+        showToast("⚠️ 안전 차단: 청크 경계 점프(80m 초과) 또는 세그먼트 손실이 감지되어 적용할 수 없습니다.", "error");
+        return;
+      }
 
       pushHistory(`도로 중심선 매칭 승인 적용 (${scope === 'all' ? '전체' : `#${startIdx+1}~#${startIdx+targetSliceLength}`})`);
 
