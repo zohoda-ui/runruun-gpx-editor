@@ -1,0 +1,365 @@
+{
+  "creator_settings": {
+    "trail": {
+      "resampleIntervalMeters": 5.0,
+      "maxSlopeGradient": 0.45,
+      "gaussianSigmaMeters": 15.0,
+      "gainGaussianSigmaMeters": 15.0,
+      "deadbandMeters": 1.0,
+      "hysteresisThresholdMeters": 2.0
+    },
+    "road": {
+      "resampleIntervalMeters": 10.0,
+      "maxSlopeGradient": 0.15,
+      "gaussianSigmaMeters": 60.0,
+      "gainGaussianSigmaMeters": 60.0,
+      "deadbandMeters": 3.0,
+      "hysteresisThresholdMeters": 3.0
+    }
+  },
+  "datasets": {
+    "cheonglyangsan_15k": {
+      "profile": "trail",
+      "type": "trail",
+      "creator": {
+        "totalDistDisplay": 14.88,
+        "totalDistKm": 14.878,
+        "eleGain": 1810,
+        "eleLoss": 1782,
+        "minEle": 193,
+        "maxEle": 871,
+        "vkm": 121.7,
+        "pointCount": 2977
+      },
+      "shadowEngine": {
+        "totalDistKm": 14.878,
+        "rawGain": 1810,
+        "rawLoss": 1782,
+        "th1Gain": 1810,
+        "th3Gain": 1690,
+        "finalGain": 1737,
+        "finalLoss": 1709,
+        "vkm": 116.7,
+        "resample5mCount": 2976,
+        "resample10mCount": 1488,
+        "displayPointCount": 2976,
+        "demMeasuredGain": 1336,
+        "demInterpGain": 1336,
+        "computationTimeMs": 31
+      },
+      "comparison": {
+        "distDiffKm": 0.0004,
+        "gainDiffMeters": -73,
+        "lossDiffMeters": -73,
+        "vkmDiff": -5.0,
+        "distMatch": true,
+        "gainMatch": false,
+        "creatorExecutionTimeMs": 120.7
+      }
+    },
+    "dynafit_taebaek_trail": {
+      "profile": "trail",
+      "type": "trail",
+      "creator": {
+        "totalDistDisplay": 49.95,
+        "totalDistKm": 49.951,
+        "eleGain": 1881,
+        "eleLoss": 1881,
+        "minEle": 619.6,
+        "maxEle": 1534.7,
+        "vkm": 37.7,
+        "pointCount": 9992
+      },
+      "shadowEngine": {
+        "totalDistKm": 49.951,
+        "rawGain": 1882,
+        "rawLoss": 1882,
+        "th1Gain": 1869,
+        "th3Gain": 1849,
+        "finalGain": 1863,
+        "finalLoss": 1863,
+        "vkm": 37.3,
+        "resample5mCount": 9991,
+        "resample10mCount": 4996,
+        "displayPointCount": 9991,
+        "demMeasuredGain": 1839,
+        "demInterpGain": 1839,
+        "computationTimeMs": 6.3
+      },
+      "comparison": {
+        "distDiffKm": 0.00013,
+        "gainDiffMeters": -18,
+        "lossDiffMeters": -18,
+        "vkmDiff": -0.4,
+        "distMatch": true,
+        "gainMatch": false,
+        "creatorExecutionTimeMs": 24.3
+      }
+    },
+    "chuncheon_full": {
+      "profile": "road",
+      "type": "road",
+      "creator": {
+        "totalDistDisplay": 42.5,
+        "totalDistKm": 42.472,
+        "eleGain": 182,
+        "eleLoss": 178,
+        "minEle": 71.2,
+        "maxEle": 113.4,
+        "vkm": 4.3,
+        "pointCount": 4249
+      },
+      "shadowEngine": {
+        "totalDistKm": 42.472,
+        "rawGain": 330,
+        "rawLoss": 326,
+        "th1Gain": 208,
+        "th3Gain": 159,
+        "finalGain": 138,
+        "finalLoss": 132,
+        "vkm": 3.2,
+        "resample5mCount": 8495,
+        "resample10mCount": 4248,
+        "displayPointCount": 4248,
+        "demMeasuredGain": 177,
+        "demInterpGain": 177,
+        "computationTimeMs": 8.1
+      },
+      "comparison": {
+        "distDiffKm": 0.00025,
+        "gainDiffMeters": -44,
+        "lossDiffMeters": -46,
+        "vkmDiff": -1.1,
+        "distMatch": true,
+        "gainMatch": false,
+        "creatorExecutionTimeMs": 51.7
+      }
+    },
+    "suncheon_bay_ultra": {
+      "profile": "road",
+      "type": "road",
+      "creator": {
+        "totalDistDisplay": 103.2,
+        "totalDistKm": 103.197,
+        "eleGain": 1388,
+        "eleLoss": 1388,
+        "minEle": 0.4,
+        "maxEle": 309.9,
+        "vkm": 13.5,
+        "pointCount": 10321
+      },
+      "shadowEngine": {
+        "totalDistKm": 103.197,
+        "rawGain": 2545,
+        "rawLoss": 2544,
+        "th1Gain": 2372,
+        "th3Gain": 1887,
+        "finalGain": 1213,
+        "finalLoss": 1216,
+        "vkm": 11.8,
+        "resample5mCount": 20640,
+        "resample10mCount": 10320,
+        "displayPointCount": 10320,
+        "demMeasuredGain": 1030,
+        "demInterpGain": 1030,
+        "computationTimeMs": 8.5
+      },
+      "comparison": {
+        "distDiffKm": 0.00025,
+        "gainDiffMeters": -175,
+        "lossDiffMeters": -172,
+        "vkmDiff": -1.7,
+        "distMatch": true,
+        "gainMatch": false,
+        "creatorExecutionTimeMs": 43.6
+      }
+    },
+    "YTN_seoulmarathon": {
+      "profile": "road",
+      "type": "road",
+      "creator": {
+        "totalDistDisplay": 21.2,
+        "totalDistKm": 21.18,
+        "eleGain": 274,
+        "eleLoss": 251,
+        "minEle": 14.6,
+        "maxEle": 66.2,
+        "vkm": 12.9,
+        "pointCount": 2119
+      },
+      "shadowEngine": {
+        "totalDistKm": 21.18,
+        "rawGain": 359,
+        "rawLoss": 340,
+        "th1Gain": 328,
+        "th3Gain": 269,
+        "finalGain": 210,
+        "finalLoss": 182,
+        "vkm": 9.9,
+        "resample5mCount": 4236,
+        "resample10mCount": 2118,
+        "displayPointCount": 2118,
+        "demMeasuredGain": 267,
+        "demInterpGain": 267,
+        "computationTimeMs": 2.3
+      },
+      "comparison": {
+        "distDiffKm": 0.0004,
+        "gainDiffMeters": -64,
+        "lossDiffMeters": -69,
+        "vkmDiff": -3.0,
+        "distMatch": true,
+        "gainMatch": false,
+        "creatorExecutionTimeMs": 12.9
+      }
+    },
+    "seoul_urban_marathon": {
+      "profile": "road",
+      "type": "road",
+      "creator": {
+        "totalDistDisplay": 21.1,
+        "totalDistKm": 21.082,
+        "eleGain": 42,
+        "eleLoss": 58,
+        "minEle": 7.1,
+        "maxEle": 35.4,
+        "vkm": 2,
+        "pointCount": 2110
+      },
+      "shadowEngine": {
+        "totalDistKm": 21.082,
+        "rawGain": 82,
+        "rawLoss": 98,
+        "th1Gain": 51,
+        "th3Gain": 35,
+        "finalGain": 27,
+        "finalLoss": 43,
+        "vkm": 1.3,
+        "resample5mCount": 4217,
+        "resample10mCount": 2109,
+        "displayPointCount": 2109,
+        "demMeasuredGain": 52,
+        "demInterpGain": 52,
+        "computationTimeMs": 1.6
+      },
+      "comparison": {
+        "distDiffKm": 0.00011,
+        "gainDiffMeters": -15,
+        "lossDiffMeters": -15,
+        "vkmDiff": -0.7,
+        "distMatch": true,
+        "gainMatch": false,
+        "creatorExecutionTimeMs": 8.2
+      }
+    },
+    "short_trail_happy_9k": {
+      "profile": "trail",
+      "type": "trail",
+      "creator": {
+        "totalDistDisplay": 9.1,
+        "totalDistKm": 9.097,
+        "eleGain": 320,
+        "eleLoss": 335,
+        "minEle": 32.1,
+        "maxEle": 262.4,
+        "vkm": 35.2,
+        "pointCount": 1821
+      },
+      "shadowEngine": {
+        "totalDistKm": 9.097,
+        "rawGain": 320,
+        "rawLoss": 335,
+        "th1Gain": 317,
+        "th3Gain": 316,
+        "finalGain": 318,
+        "finalLoss": 330,
+        "vkm": 35,
+        "resample5mCount": 1820,
+        "resample10mCount": 910,
+        "displayPointCount": 1820,
+        "demMeasuredGain": 320,
+        "demInterpGain": 320,
+        "computationTimeMs": 0.7
+      },
+      "comparison": {
+        "distDiffKm": 0.00016,
+        "gainDiffMeters": -2,
+        "lossDiffMeters": -5,
+        "vkmDiff": -0.2,
+        "distMatch": true,
+        "gainMatch": false,
+        "creatorExecutionTimeMs": 3.3
+      }
+    },
+    "long_trail_seoul100k": {
+      "profile": "trail",
+      "type": "trail",
+      "creator": {
+        "totalDistDisplay": 48.97,
+        "totalDistKm": 48.968,
+        "eleGain": 3241,
+        "eleLoss": 3239,
+        "minEle": 36,
+        "maxEle": 633,
+        "vkm": 66.2,
+        "pointCount": 9795
+      },
+      "shadowEngine": {
+        "totalDistKm": 48.968,
+        "rawGain": 3241,
+        "rawLoss": 3239,
+        "th1Gain": 3241,
+        "th3Gain": 2942,
+        "finalGain": 3037,
+        "finalLoss": 3035,
+        "vkm": 62,
+        "resample5mCount": 9794,
+        "resample10mCount": 4897,
+        "displayPointCount": 9794,
+        "demMeasuredGain": 2008,
+        "demInterpGain": 2008,
+        "computationTimeMs": 15.2
+      },
+      "comparison": {
+        "distDiffKm": 0.00029,
+        "gainDiffMeters": -204,
+        "lossDiffMeters": -204,
+        "vkmDiff": -4.2,
+        "distMatch": true,
+        "gainMatch": false,
+        "creatorExecutionTimeMs": 73.5
+      }
+    }
+  },
+  "synthetic_cases": {
+    "null_elevation": {
+      "creatorGain": 4,
+      "creatorLoss": 6,
+      "shadowGain": 25,
+      "shadowLoss": 0,
+      "shadowRawGain": 30,
+      "diff": 21
+    },
+    "elevation_spike": {
+      "creatorGain": 10,
+      "creatorLoss": 0,
+      "shadowGain": 3,
+      "shadowLoss": 0,
+      "shadowRawGain": 250,
+      "diff": -7
+    },
+    "custom_crafted_route": {
+      "creatorGain": 11,
+      "creatorLoss": 1,
+      "shadowGain": 10,
+      "shadowLoss": 0,
+      "shadowRawGain": 18,
+      "diff": -1
+    }
+  },
+  "performance": {},
+  "console_errors": [
+    "[error] Failed to load resource: net::ERR_FILE_NOT_FOUND",
+    "[error] Failed to load resource: net::ERR_FILE_NOT_FOUND"
+  ]
+}
