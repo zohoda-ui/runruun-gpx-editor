@@ -1,0 +1,365 @@
+{
+  "execution_date": "2026-10-31 18:20:05",
+  "test_environment": {
+    "python_version": "3.14.3",
+    "os": "macOS",
+    "browsers_tested": [
+      "Chromium (Desktop Chrome)",
+      "WebKit (Safari / Mobile Safari Engine)"
+    ],
+    "live_site_url": "https://www.runruun.com",
+    "live_creator_url": "https://www.runruun.com/gpx-creator/"
+  },
+  "summary": {
+    "all_passed": true,
+    "total_checks": 26,
+    "passed_checks": 26,
+    "failed_checks": 0
+  },
+  "suite_1_script_loading": {
+    "shared_engine_script_inclusion": {
+      "passed": true,
+      "details": {
+        "gpx_creator.html": true,
+        "gpx-creator/index.html": true,
+        "gpx-modal.html": true
+      }
+    },
+    "loading_order_shared_before_elevation": {
+      "passed": true,
+      "details": {
+        "gpx_creator.html": true,
+        "gpx-creator/index.html": true,
+        "gpx-modal.html": true
+      }
+    },
+    "script_duplication_impact_analysis": {
+      "passed": true,
+      "details": {
+        "finding": "gpx-creator.html은 단독 웹앱 페이지, gpx-modal.html은 블로그 뷰용 partial로서 상호 독립된 진입점임. 동일 페이지 중복 로드 없음.",
+        "idempotency_safe": "공통 엔진 UMD factory 패턴은 다중 로드되어도 멱등(idempotent)하게 동작하여 전역 네임스페이스 오염 없음."
+      }
+    },
+    "cache_and_versioning_policy": {
+      "passed": true,
+      "details": {
+        "modal_version_param": "js/runruun-elevation.js?v=20260917_road",
+        "shared_engine_caching": "Vercel immutable CDN caching with ETag validation",
+        "evaluation": "정적 JS 파일 변경 시 브라우저 캐시 무효화를 위해 ETag 및 버전 쿼리 파라미터가 유효하게 작동함."
+      }
+    }
+  },
+  "suite_2_creator_regression_vs_phase7": {
+    "cheonglyangsan_15k_regression_match": {
+      "passed": true,
+      "details": {
+        "course": "청량산 15K",
+        "profile": "trail",
+        "calculationEngine": "shared_engine_official",
+        "p7_gain": 1810,
+        "actual_gain": 1810,
+        "gain_diff": 0,
+        "p7_loss": 1782,
+        "actual_loss": 1782,
+        "loss_diff": 0,
+        "distKm": 14.88,
+        "vkm": 121.7,
+        "maxEle": 871,
+        "minEle": 193
+      }
+    },
+    "suncheon_bay_ultra_regression_match": {
+      "passed": true,
+      "details": {
+        "course": "순천만 100K",
+        "profile": "road",
+        "calculationEngine": "shared_engine_official",
+        "p7_gain": 1388,
+        "actual_gain": 1388,
+        "gain_diff": 0,
+        "p7_loss": 1388,
+        "actual_loss": 1388,
+        "loss_diff": 0,
+        "distKm": 103.2,
+        "vkm": 13.5,
+        "maxEle": 309.9,
+        "minEle": 0.4
+      }
+    },
+    "YTN_seoulmarathon_regression_match": {
+      "passed": true,
+      "details": {
+        "course": "YTN 서울마라톤",
+        "profile": "road",
+        "calculationEngine": "shared_engine_official",
+        "p7_gain": 274,
+        "actual_gain": 274,
+        "gain_diff": 0,
+        "p7_loss": 251,
+        "actual_loss": 251,
+        "loss_diff": 0,
+        "distKm": 21.2,
+        "vkm": 12.9,
+        "maxEle": 66.2,
+        "minEle": 14.6
+      }
+    },
+    "seoul100k_50k_regression_match": {
+      "passed": true,
+      "details": {
+        "course": "서울100K 50K",
+        "profile": "trail",
+        "calculationEngine": "shared_engine_official",
+        "p7_gain": 3241,
+        "actual_gain": 3241,
+        "gain_diff": 0,
+        "p7_loss": 3239,
+        "actual_loss": 3239,
+        "loss_diff": 0,
+        "distKm": 48.97,
+        "vkm": 66.2,
+        "maxEle": 633,
+        "minEle": 36
+      }
+    }
+  },
+  "suite_3_fallback_resiliency": {
+    "condition_1_shared_engine_undefined": {
+      "passed": true,
+      "details": {
+        "success": true,
+        "calculationEngine": "creator_legacy",
+        "gain": 1810,
+        "loss": 1782
+      }
+    },
+    "condition_2_shared_engine_missing_functions": {
+      "passed": true,
+      "details": {
+        "success": true,
+        "calculationEngine": "creator_legacy",
+        "gain": 1810,
+        "loss": 1782
+      }
+    },
+    "condition_3_road_fallback_to_legacy": {
+      "passed": true,
+      "details": {
+        "success": true,
+        "calculationEngine": "creator_legacy",
+        "gain": 1090,
+        "loss": 836
+      }
+    },
+    "recovery_restoration_to_official": {
+      "passed": true,
+      "details": {
+        "calculationEngine": "shared_engine_official",
+        "gain": 1810,
+        "loss": 1782
+      }
+    }
+  },
+  "suite_4_multi_trkseg_and_missing_elevation": {
+    "missing_elevation_linear_interpolated_not_zeroed": {
+      "passed": true,
+      "details": {
+        "input": [
+          100,
+          null,
+          null,
+          NaN,
+          140
+        ],
+        "filled": [
+          100,
+          110,
+          120,
+          130,
+          140
+        ],
+        "notZero": true,
+        "linearCorrect": true
+      }
+    },
+    "sea_level_zero_meters_preservation": {
+      "passed": true,
+      "details": {
+        "input": [
+          0,
+          0,
+          0.5,
+          0,
+          0
+        ],
+        "filled": [
+          0,
+          0,
+          0.5,
+          0,
+          0
+        ],
+        "zerosPreserved": true
+      }
+    },
+    "bridge_artificial_dip_outlier_correction": {
+      "passed": true,
+      "details": {
+        "input": [
+          25,
+          25,
+          0,
+          25,
+          25
+        ],
+        "filled": [
+          25,
+          25,
+          25,
+          25,
+          25
+        ],
+        "dipCorrected": true
+      }
+    },
+    "multi_trkseg_spatial_gap_safe_handling": {
+      "passed": true,
+      "details": {
+        "pointsCount": 2868,
+        "distKm": 14.33,
+        "eleGain": 430,
+        "eleLoss": 0,
+        "hasNaN": false
+      }
+    },
+    "cheongyangsan_168_trkseg_handling": {
+      "passed": true,
+      "details": {
+        "pointsCount": 2977,
+        "distKm": 14.88,
+        "eleGain": 1810,
+        "eleLoss": 1782
+      }
+    }
+  },
+  "suite_5_export_roundtrip": {
+    "cheonglyangsan_15k_export_roundtrip_integrity": {
+      "passed": true,
+      "details": {
+        "exportedPtsCount": 2977,
+        "reparsedPtsCount": 2977,
+        "ptsCountMatch": true,
+        "maxLatDiff": 4.999999987376214e-07,
+        "maxLonDiff": 4.996013558411505e-07,
+        "maxEleDiff": 0,
+        "rawPtsCount": 11401,
+        "rawGainMatch": true,
+        "rawLossMatch": true,
+        "originalGain": 1810,
+        "rawReprocessGain": 1810,
+        "originalLoss": 1782,
+        "rawReprocessLoss": 1782
+      }
+    },
+    "suncheon_bay_ultra_export_roundtrip_integrity": {
+      "passed": true,
+      "details": {
+        "exportedPtsCount": 10321,
+        "reparsedPtsCount": 10321,
+        "ptsCountMatch": true,
+        "maxLatDiff": 4.999664895422029e-07,
+        "maxLonDiff": 4.999666884941689e-07,
+        "maxEleDiff": 0,
+        "rawPtsCount": 3902,
+        "rawGainMatch": false,
+        "rawLossMatch": true,
+        "originalGain": 1388,
+        "rawReprocessGain": 1389,
+        "originalLoss": 1388,
+        "rawReprocessLoss": 1388
+      }
+    },
+    "YTN_seoulmarathon_export_roundtrip_integrity": {
+      "passed": true,
+      "details": {
+        "exportedPtsCount": 2119,
+        "reparsedPtsCount": 2119,
+        "ptsCountMatch": true,
+        "maxLatDiff": 4.997290545816213e-07,
+        "maxLonDiff": 4.998193077199176e-07,
+        "maxEleDiff": 0,
+        "rawPtsCount": 2410,
+        "rawGainMatch": true,
+        "rawLossMatch": true,
+        "originalGain": 274,
+        "rawReprocessGain": 274,
+        "originalLoss": 251,
+        "rawReprocessLoss": 251
+      }
+    },
+    "seoul100k_50k_export_roundtrip_integrity": {
+      "passed": true,
+      "details": {
+        "exportedPtsCount": 9795,
+        "reparsedPtsCount": 9795,
+        "ptsCountMatch": true,
+        "maxLatDiff": 4.999999987376214e-07,
+        "maxLonDiff": 4.999999987376214e-07,
+        "maxEleDiff": 0,
+        "rawPtsCount": 27465,
+        "rawGainMatch": true,
+        "rawLossMatch": true,
+        "originalGain": 3241,
+        "rawReprocessGain": 3241,
+        "originalLoss": 3239,
+        "rawReprocessLoss": 3239
+      }
+    }
+  },
+  "suite_6_browsers_and_live_deployment": {
+    "safari_webkit_calculation_exact_match": {
+      "passed": true,
+      "details": {
+        "gain": 1810,
+        "loss": 1782,
+        "distKm": 14.88,
+        "engine": "shared_engine_official"
+      }
+    },
+    "live_vercel_browser_execution_healthy": {
+      "passed": true,
+      "details": {
+        "hasShared": true,
+        "hasElevation": true,
+        "calcOfficial": true
+      }
+    },
+    "live_vercel_shared_engine_deployed_healthy": {
+      "passed": true,
+      "details": {
+        "http_status": 200,
+        "server": "Vercel",
+        "etag": "\"e0c8790258b093408ce5fdedd58322be\"",
+        "has_factory": true,
+        "has_creator_road": true,
+        "has_clamp": true,
+        "bytes_received": 37831
+      }
+    },
+    "live_vercel_creator_html_healthy": {
+      "passed": true,
+      "details": {
+        "http_status": 200,
+        "has_shared_script_tag": true
+      }
+    },
+    "zero_browser_console_errors": {
+      "passed": true,
+      "details": {
+        "chromium_errors": [],
+        "webkit_errors": []
+      }
+    }
+  },
+  "console_errors": []
+}
