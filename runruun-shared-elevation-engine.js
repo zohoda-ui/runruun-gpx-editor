@@ -91,15 +91,18 @@
    * 원본 배열 불변성 보장, 새 포인트 배열 반환
    * @param {Array<Object>} points 
    * @param {Number} [targetIntervalMeters=5.0]
+   * @param {Object} [options={}]
    * @returns {Array<Object>}
    */
-  function resamplePoints(points, targetIntervalMeters) {
+  function resamplePoints(points, targetIntervalMeters, options) {
     if (!Array.isArray(points) || points.length < 2) {
       return (points || []).map(function (p) { return Object.assign({}, p); });
     }
     var interval = (typeof targetIntervalMeters === 'number' && targetIntervalMeters > 0)
       ? targetIntervalMeters
       : 5.0;
+    var opts = options || {};
+    var isCreatorMode = (opts.mode === 'creator' || opts.preserveEndpoint === true);
 
     var cumDists = calculateCumulativeDistances(points);
     var totalDist = cumDists[cumDists.length - 1];
@@ -108,8 +111,97 @@
       return [Object.assign({}, points[0])];
     }
 
+    if (isCreatorMode) {
+      // Creator 호환 정밀 리샘플링: 10m/5m 정규 간격 포인트 생성 + 마지막 정규 샘플 보존 + 실제 종점 별도 추가 (중복 방지)
+      var resampled = [];
+      var p0 = points[0];
+      var e0 = (p0 && p0.ele !== null && !isNaN(p0.ele)) ? Math.round(Number(p0.ele) * 10) / 10 : null;
+      resampled.push({
+        lat: p0.lat,
+        lon: p0.lon !== undefined ? p0.lon : p0.lng,
+        ele: e0,
+        originalEle: p0.originalEle !== undefined ? p0.originalEle : p0.ele,
+        dist: 0,
+        distMeters: 0,
+        eleStatus: (e0 !== null) ? 'original' : 'failed',
+        eleSource: p0.eleSource || 'GPX'
+      });
+
+      var currentTargetDist = interval;
+      var rawIdx = 0;
+
+      while (currentTargetDist < totalDist) {
+        while (rawIdx < points.length - 1 && cumDists[rawIdx + 1] < currentTargetDist) {
+          rawIdx++;
+        }
+        if (rawIdx >= points.length - 1) break;
+
+        var dStart = cumDists[rawIdx];
+        var dEnd = cumDists[rawIdx + 1];
+        var segLen = dEnd - dStart;
+        var ratio = segLen > 0 ? (currentTargetDist - dStart) / segLen : 0;
+
+        var pA = points[rawIdx];
+        var pB = points[rawIdx + 1];
+
+        var lat = pA.lat + (pB.lat - pA.lat) * ratio;
+        var lonA = pA.lon !== undefined ? pA.lon : pA.lng;
+        var lonB = pB.lon !== undefined ? pB.lon : pB.lng;
+        var lon = lonA + (lonB - lonA) * ratio;
+
+        var eleA = (pA.ele !== null && !isNaN(pA.ele)) ? Math.round(Number(pA.ele) * 10) / 10 : null;
+        var eleB = (pB.ele !== null && !isNaN(pB.ele)) ? Math.round(Number(pB.ele) * 10) / 10 : null;
+        var interpEle = null;
+        if (eleA !== null && eleB !== null) {
+          interpEle = Math.round((eleA + (eleB - eleA) * ratio) * 10) / 10;
+        } else if (eleA !== null) {
+          interpEle = eleA;
+        } else if (eleB !== null) {
+          interpEle = eleB;
+        }
+
+        var origEleA = pA.originalEle !== undefined ? pA.originalEle : pA.ele;
+        var origEleB = pB.originalEle !== undefined ? pB.originalEle : pB.ele;
+
+        resampled.push({
+          lat: lat,
+          lon: lon,
+          ele: interpEle,
+          originalEle: ratio < 0.5 ? origEleA : origEleB,
+          dist: Math.round((currentTargetDist / 1000) * 10000) / 10000,
+          distMeters: currentTargetDist,
+          eleStatus: (interpEle !== null) ? 'interpolated' : 'failed',
+          eleSource: pA.eleSource || 'Resampled'
+        });
+
+        currentTargetDist += interval;
+      }
+
+      // 종점 포인트 추가 (정규 샘플과 동일 거리인 경우 중복 추가 방지)
+      var lastIdx = points.length - 1;
+      var lastRaw = points[lastIdx];
+      var lastEle = (lastRaw && lastRaw.ele !== null && !isNaN(lastRaw.ele)) ? Math.round(Number(lastRaw.ele) * 10) / 10 : null;
+      var lastDistKm = Math.round((totalDist / 1000) * 10000) / 10000;
+
+      if (resampled.length === 0 || Math.abs(resampled[resampled.length - 1].distMeters - totalDist) > 0.001) {
+        resampled.push({
+          lat: lastRaw.lat,
+          lon: lastRaw.lon !== undefined ? lastRaw.lon : lastRaw.lng,
+          ele: lastEle,
+          originalEle: lastRaw.originalEle !== undefined ? lastRaw.originalEle : lastRaw.ele,
+          dist: lastDistKm,
+          distMeters: totalDist,
+          eleStatus: (lastEle !== null) ? 'original' : 'failed',
+          eleSource: lastRaw.eleSource || 'GPX'
+        });
+      }
+
+      return resampled;
+    }
+
+    // 기본 Shared Engine 리샘플링
     var numPoints = Math.max(2, Math.floor(totalDist / interval) + 1);
-    var resampled = [];
+    var defaultResampled = [];
 
     var srcIdx = 0;
     for (var i = 0; i < numPoints; i++) {
@@ -121,44 +213,44 @@
 
       var d0 = cumDists[srcIdx];
       var d1 = cumDists[srcIdx + 1];
-      var segLen = d1 - d0;
-      var ratio = (segLen > 0) ? (targetDist - d0) / segLen : 0;
-      ratio = Math.max(0, Math.min(1, ratio));
+      var segLenDef = d1 - d0;
+      var ratioDef = (segLenDef > 0) ? (targetDist - d0) / segLenDef : 0;
+      ratioDef = Math.max(0, Math.min(1, ratioDef));
 
-      var p0 = points[srcIdx];
-      var p1 = points[srcIdx + 1];
+      var p0Def = points[srcIdx];
+      var p1Def = points[srcIdx + 1];
 
-      var lat = p0.lat + (p1.lat - p0.lat) * ratio;
-      var lon0 = p0.lon !== undefined ? p0.lon : p0.lng;
-      var lon1 = p1.lon !== undefined ? p1.lon : p1.lng;
-      var lon = lon0 + (lon1 - lon0) * ratio;
+      var latDef = p0Def.lat + (p1Def.lat - p0Def.lat) * ratioDef;
+      var lon0Def = p0Def.lon !== undefined ? p0Def.lon : p0Def.lng;
+      var lon1Def = p1Def.lon !== undefined ? p1Def.lon : p1Def.lng;
+      var lonDef = lon0Def + (lon1Def - lon0Def) * ratioDef;
 
-      var ele = null;
-      var hasE0 = (p0.ele !== null && p0.ele !== undefined && !isNaN(p0.ele));
-      var hasE1 = (p1.ele !== null && p1.ele !== undefined && !isNaN(p1.ele));
+      var eleDef = null;
+      var hasE0 = (p0Def.ele !== null && p0Def.ele !== undefined && !isNaN(p0Def.ele));
+      var hasE1 = (p1Def.ele !== null && p1Def.ele !== undefined && !isNaN(p1Def.ele));
       if (hasE0 && hasE1) {
-        ele = p0.ele + (p1.ele - p0.ele) * ratio;
+        eleDef = p0Def.ele + (p1Def.ele - p0Def.ele) * ratioDef;
       } else if (hasE0) {
-        ele = p0.ele;
+        eleDef = p0Def.ele;
       } else if (hasE1) {
-        ele = p1.ele;
+        eleDef = p1Def.ele;
       }
 
-      var origEle = p0.originalEle !== undefined ? p0.originalEle : p0.ele;
+      var origEleDef = p0Def.originalEle !== undefined ? p0Def.originalEle : p0Def.ele;
 
-      resampled.push({
-        lat: lat,
-        lon: lon,
-        ele: ele !== null ? Math.round(ele * 10) / 10 : null,
-        originalEle: origEle,
+      defaultResampled.push({
+        lat: latDef,
+        lon: lonDef,
+        ele: eleDef !== null ? Math.round(eleDef * 10) / 10 : null,
+        originalEle: origEleDef,
         dist: Math.round((targetDist / 1000) * 10000) / 10000,
         distMeters: targetDist,
-        eleStatus: (ele !== null) ? 'interpolated' : 'failed',
-        eleSource: p0.eleSource || 'Resampled'
+        eleStatus: (eleDef !== null) ? 'interpolated' : 'failed',
+        eleSource: p0Def.eleSource || 'Resampled'
       });
     }
 
-    return resampled;
+    return defaultResampled;
   }
 
   /**
@@ -169,16 +261,62 @@
    * @param {Number} [maxSlopeGradient=0.45]
    * @returns {Array<Object>}
    */
-  function limitGradientSpikes(points, maxSlopeGradient) {
+  /**
+   * 4. 물리적 경사도 한계 이상치 보정 (Gradient Spike Limiter)
+   * 도로: 0.15 (15%), 트레일: 0.45 (45%)
+   * 원본 배열 불변성 보장
+   * @param {Array<Object>} points 
+   * @param {Number} [maxSlopeGradient=0.45]
+   * @param {Object} [options={}]
+   * @returns {Array<Object>}
+   */
+  function limitGradientSpikes(points, maxSlopeGradient, options) {
     if (!Array.isArray(points) || points.length < 2) {
       return (points || []).map(function (p) { return Object.assign({}, p); });
     }
     var maxSlope = (typeof maxSlopeGradient === 'number' && maxSlopeGradient > 0)
       ? maxSlopeGradient
       : 0.45;
+    var opts = options || {};
+    var isCreatorMode = (opts.mode === 'creator' || opts.bidirectional === true);
 
     var result = points.map(function (p) { return Object.assign({}, p); });
+    var n = result.length;
 
+    if (isCreatorMode) {
+      var bufferMeters = (typeof opts.bufferMeters === 'number') ? opts.bufferMeters : 0.3;
+      // 1. 순방향 클램핑 패스 (Forward Pass with +0.3m buffer)
+      for (var fIdx = 1; fIdx < n; fIdx++) {
+        var pPrevF = result[fIdx - 1];
+        var pCurF = result[fIdx];
+        if (pPrevF.ele === null || pCurF.ele === null || isNaN(pPrevF.ele) || isNaN(pCurF.ele)) continue;
+        var ddF = haversineDistance(pPrevF, pCurF, 'm');
+        if (ddF <= 0) continue;
+        var dhF = pCurF.ele - pPrevF.ele;
+        var maxDhF = (maxSlope * ddF) + bufferMeters;
+        if (Math.abs(dhF) > maxDhF) {
+          result[fIdx].ele = Math.round((pPrevF.ele + (dhF > 0 ? 1 : -1) * maxDhF) * 10) / 10;
+          result[fIdx].eleStatus = 'filtered';
+        }
+      }
+      // 2. 역방향 클램핑 패스 (Backward Pass with +0.3m buffer)
+      for (var bIdx = n - 2; bIdx >= 0; bIdx--) {
+        var pNextB = result[bIdx + 1];
+        var pCurB = result[bIdx];
+        if (pNextB.ele === null || pCurB.ele === null || isNaN(pNextB.ele) || isNaN(pCurB.ele)) continue;
+        var ddB = haversineDistance(pNextB, pCurB, 'm');
+        if (ddB <= 0) continue;
+        var dhB = pCurB.ele - pNextB.ele;
+        var maxDhB = (maxSlope * ddB) + bufferMeters;
+        if (Math.abs(dhB) > maxDhB) {
+          result[bIdx].ele = Math.round((pNextB.ele + (dhB > 0 ? 1 : -1) * maxDhB) * 10) / 10;
+          result[bIdx].eleStatus = 'filtered';
+        }
+      }
+      return result;
+    }
+
+    // 기본 단방향 패스
     for (var i = 1; i < result.length; i++) {
       var prev = result[i - 1];
       var curr = result[i];
@@ -212,9 +350,10 @@
    * @param {Array<Object>} points 
    * @param {Number} [sigmaMeters=15.0]
    * @param {Number} [resampleIntervalMeters=5.0]
+   * @param {Object} [options={}]
    * @returns {Array<Object>}
    */
-  function spatialGaussianSmooth(points, sigmaMeters, resampleIntervalMeters) {
+  function spatialGaussianSmooth(points, sigmaMeters, resampleIntervalMeters, options) {
     if (!Array.isArray(points) || points.length === 0) return [];
     if (points.length < 3) {
       return points.map(function (p) { return Object.assign({}, p); });
@@ -224,6 +363,48 @@
     var interval = (typeof resampleIntervalMeters === 'number' && resampleIntervalMeters > 0)
       ? resampleIntervalMeters
       : 5.0;
+    var opts = options || {};
+    var isClamp = (opts.boundary === 'clamp');
+
+    var n = points.length;
+
+    if (isClamp) {
+      // Creator 호환 Border Clamping: 경계 밖 인덱스는 가장자리 값 복제 후 정규화 커널 합성
+      var sigmaPts = Math.max(0.5, sigma / interval);
+      var kernelRadius = Math.ceil(3.0 * sigmaPts);
+      var kernelSize = 2 * kernelRadius + 1;
+      var kernel = new Float64Array(kernelSize);
+      var kernelSum = 0;
+      for (var k = 0; k < kernelSize; k++) {
+        var xVal = k - kernelRadius;
+        var kval = Math.exp(-0.5 * (xVal / sigmaPts) * (xVal / sigmaPts));
+        kernel[k] = kval;
+        kernelSum += kval;
+      }
+      for (var normIdx = 0; normIdx < kernelSize; normIdx++) {
+        kernel[normIdx] /= kernelSum;
+      }
+
+      var clampedSmoothed = new Array(n);
+      for (var pIdx = 0; pIdx < n; pIdx++) {
+        var curP = Object.assign({}, points[pIdx]);
+        if (curP.ele === null || curP.ele === undefined || isNaN(curP.ele)) {
+          clampedSmoothed[pIdx] = curP;
+          continue;
+        }
+        var cSum = 0;
+        for (var w = -kernelRadius; w <= kernelRadius; w++) {
+          var targetIdx = pIdx + w;
+          if (targetIdx < 0) targetIdx = 0;
+          else if (targetIdx >= n) targetIdx = n - 1;
+          var tEle = points[targetIdx].ele;
+          cSum += (tEle !== null && !isNaN(tEle) ? tEle : curP.ele) * kernel[w + kernelRadius];
+        }
+        curP.ele = Math.round(cSum * 10) / 10;
+        clampedSmoothed[pIdx] = curP;
+      }
+      return clampedSmoothed;
+    }
 
     var radiusMeters = 3.0 * sigma;
     var halfWindow = Math.max(1, Math.ceil(radiusMeters / interval));
@@ -236,7 +417,6 @@
       weights[w] = Math.exp(-(distM * distM) / twoSigmaSq);
     }
 
-    var n = points.length;
     var smoothed = new Array(n);
 
     for (var i = 0; i < n; i++) {
@@ -249,10 +429,10 @@
       var weightSum = weights[0];
       var eleSum = pt.ele * weights[0];
 
-      for (var k = 1; k <= halfWindow; k++) {
-        var wVal = weights[k];
-        var leftIdx = i - k;
-        var rightIdx = i + k;
+      for (var kw = 1; kw <= halfWindow; kw++) {
+        var wVal = weights[kw];
+        var leftIdx = i - kw;
+        var rightIdx = i + kw;
 
         if (leftIdx >= 0) {
           var leftEle = points[leftIdx].ele;
@@ -715,24 +895,25 @@
     var gaussianSigma = 15.0;
     var isDemSim = false;
 
-    // --- 11가지 표준 모드 및 Phase 5 신규 통합 정책 매핑 ---
+    // --- 11가지 표준 모드 및 Phase 5/7 신규 통합 정책 매핑 ---
     if (method === 'creator_trail') {
-      // Phase 5 Creator 호환 Trail 모드: 원본 고도(workingPoints) 대상 Creator Trail 누적기
+      // Phase 7 Creator 호환 Trail 모드: 5m 리샘플링 -> 45% 경사제한 -> 15m 클램핑 가우시안 (차트용) + 원본 고도 1.0m 데드밴드 누적
+      filterType = 'creator_trail';
       accMode = 'creator_trail';
       deadbandVal = opts.deadband !== undefined ? opts.deadband : 1.0;
     } else if (method === 'creator_road') {
-      // Phase 5 Creator 호환 Road 모드: 10m 리샘플링 -> 15% 경사제한 -> 60m 가우시안 -> Creator Pivot 누적기
+      // Phase 7 Creator 호환 Road 모드: 10m 정밀 리샘플링 -> 15% 양방향 버퍼 경사제한 -> 60m 클램핑 가우시안 -> 3.0m 피봇 누적
       filterType = 'creator_road';
       accMode = 'creator_pivot';
       thresholdVal = opts.threshold !== undefined ? opts.threshold : 3.0;
     } else if (method === 'shared_trail' || method === 'shared_hysteresis_trail') {
-      // Phase 5 Shared Engine Trail 실험 정책: 5m 리샘플링 -> 45% 경사제한 -> 15m 가우시안 -> 2m Hysteresis
+      // Phase 7 Shared Engine Trail 실험 정책: 5m 리샘플링 -> 45% 경사제한 -> 15m 가우시안 -> 2m Hysteresis
       filterType = 'shared_trail';
       accMode = 'hysteresis';
       deadbandVal = opts.deadband !== undefined ? opts.deadband : 1.0;
     } else if (method === 'shared_road' || method === 'shared_hysteresis_road') {
-      // Phase 5 Shared Engine Road 실험 정책: 10m 리샘플링 -> 15% 경사제한 -> 60m 가우시안 -> 3m Hysteresis
-      filterType = 'creator_road';
+      // Phase 7 Shared Engine Road 실험 정책: 10m 리샘플링 -> 15% 경사제한 -> 60m 가우시안 -> 3m Hysteresis
+      filterType = 'shared_road';
       accMode = 'hysteresis';
       deadbandVal = opts.deadband !== undefined ? opts.deadband : 3.0;
     } else if (method === 'raw') {
@@ -768,19 +949,33 @@
     }
 
     var finalPoints = workingPoints;
+    var targetGainPoints = workingPoints;
 
     // 가우시안 및 프로파일별 전처리 필터 적용
     if (filterType === 'gaussian') {
       var resampled = resamplePoints(workingPoints, 5.0);
       finalPoints = spatialGaussianSmooth(resampled, gaussianSigma, 5.0);
+      targetGainPoints = finalPoints;
     } else if (filterType === 'creator_road') {
-      var resampledRoad = resamplePoints(workingPoints, 10.0);
-      var spikeLimitedRoad = limitGradientSpikes(resampledRoad, 0.15);
-      finalPoints = spatialGaussianSmooth(spikeLimitedRoad, 60.0, 10.0);
+      var resampledRoad = resamplePoints(workingPoints, 10.0, { mode: 'creator' });
+      var spikeLimitedRoad = limitGradientSpikes(resampledRoad, 0.15, { mode: 'creator' });
+      finalPoints = spatialGaussianSmooth(spikeLimitedRoad, 60.0, 10.0, { boundary: 'clamp' });
+      targetGainPoints = finalPoints;
+    } else if (filterType === 'creator_trail') {
+      var resampledTrail = resamplePoints(workingPoints, 5.0, { mode: 'creator' });
+      var spikeLimitedTrail = limitGradientSpikes(resampledTrail, 0.45, { mode: 'creator' });
+      finalPoints = spatialGaussianSmooth(spikeLimitedTrail, 15.0, 5.0, { boundary: 'clamp' });
+      targetGainPoints = workingPoints; // Creator Trail은 원본 고도(workingPoints) 대상 누적
     } else if (filterType === 'shared_trail') {
-      var resampledTrail = resamplePoints(workingPoints, 5.0);
-      var spikeLimitedTrail = limitGradientSpikes(resampledTrail, 0.45);
-      finalPoints = spatialGaussianSmooth(spikeLimitedTrail, 15.0, 5.0);
+      var resampledSharedTrail = resamplePoints(workingPoints, 5.0);
+      var spikeLimitedSharedTrail = limitGradientSpikes(resampledSharedTrail, 0.45);
+      finalPoints = spatialGaussianSmooth(spikeLimitedSharedTrail, 15.0, 5.0);
+      targetGainPoints = finalPoints;
+    } else if (filterType === 'shared_road') {
+      var resampledSharedRoad = resamplePoints(workingPoints, 10.0);
+      var spikeLimitedSharedRoad = limitGradientSpikes(resampledSharedRoad, 0.15);
+      finalPoints = spatialGaussianSmooth(spikeLimitedSharedRoad, 60.0, 10.0);
+      targetGainPoints = finalPoints;
     }
 
     // DEM 시뮬레이션 모드 처리
@@ -799,6 +994,7 @@
           p.eleStatus = 'measured';
           return p;
         });
+        targetGainPoints = finalPoints;
         accMode = 'raw';
       } else if (method === 'dem_interpolated') {
         // 96개 표본 간 선형 보간 고도로 재구성
@@ -822,25 +1018,27 @@
           clone.eleStatus = sampleIndices.indexOf(idx) !== -1 ? 'measured' : 'interpolated';
           return clone;
         });
+        targetGainPoints = finalPoints;
         accMode = 'raw';
       }
     }
 
     // 최종 D+ / D- 누적 계산
-    var gainLoss = calculateElevationGainLossInternal(finalPoints, {
+    var gainLoss = calculateElevationGainLossInternal(targetGainPoints, {
       mode: accMode,
       threshold: thresholdVal,
       deadband: deadbandVal
     });
 
     // 고도 최소, 최대, 평균
+    var extremaPoints = (filterType === 'creator_trail') ? workingPoints : finalPoints;
     var minEle = Infinity;
     var maxEle = -Infinity;
     var eleSum = 0;
     var validCount = 0;
 
-    for (var j = 0; j < finalPoints.length; j++) {
-      var eVal = finalPoints[j].ele;
+    for (var j = 0; j < extremaPoints.length; j++) {
+      var eVal = extremaPoints[j].ele;
       if (eVal !== null && !isNaN(eVal)) {
         if (eVal < minEle) minEle = eVal;
         if (eVal > maxEle) maxEle = eVal;
