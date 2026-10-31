@@ -514,8 +514,8 @@
     }
 
     .legend-line.orig {
-      background: #a855f7;
-      border-top: 1px dashed #c084fc;
+      background: transparent;
+      border-top: 2px dashed #9ca3af;
     }
 
     .legend-line.mod {
@@ -535,6 +535,15 @@
       border: 1.5px solid #fff;
     }
 
+    /* Map Click Add Mode Active Cursor */
+    #map.add-point-mode {
+      cursor: crosshair !important;
+    }
+
+    #map.add-point-mode .leaflet-grab {
+      cursor: crosshair !important;
+    }
+
     /* Loading Spinner */
     .spinner {
       display: inline-block;
@@ -548,6 +557,48 @@
 
     @keyframes spin {
       to { transform: rotate(360deg); }
+    }
+
+    /* Responsive Media Queries (모바일 및 태블릿 대응) */
+    @media (max-width: 900px) {
+      body {
+        overflow-y: auto;
+        height: auto;
+      }
+      header {
+        height: auto;
+        padding: 10px 14px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .header-actions {
+        flex-wrap: wrap;
+        width: 100%;
+        justify-content: flex-start;
+      }
+      .app-main {
+        flex-direction: column-reverse;
+        height: auto;
+        overflow: visible;
+      }
+      .sidebar {
+        width: 100%;
+        max-height: none;
+        height: auto;
+        border-right: none;
+        border-top: 1px solid var(--border-color);
+      }
+      .map-container-wrap {
+        height: 60vh;
+        min-height: 420px;
+      }
+      .bottom-panel {
+        height: 150px;
+      }
+      .map-floating-bar {
+        flex-wrap: wrap;
+        max-width: calc(100% - 28px);
+      }
     }
   </style>
 </head>
@@ -780,7 +831,7 @@
         </div>
         <ul style="font-size: 0.75rem; color: var(--text-dim); padding-left: 16px; line-height: 1.5;">
           <li>도로망이 없는 산길·트레일은 도로 매칭 시 강제로 우회될 수 있으므로 일반 포인트 편집을 권장합니다.</li>
-          <li>수정본과 원본(보라 점선)은 실시간 비교되며 언제든 되돌릴(Ctrl+Z) 수 있습니다.</li>
+          <li>수정본(녹색 실선)과 원본(회색 점선)은 실시간 비교되며 언제든 되돌릴(Ctrl+Z) 수 있습니다.</li>
           <li>지도의 OpenStreetMap 타일 및 OSRM 서비스 이용 규정을 준수합니다.</li>
         </ul>
       </div>
@@ -791,15 +842,24 @@
       <!-- Floating Map Top Controls -->
       <div class="map-floating-bar">
         <select id="mapLayerSelect" class="map-style-select">
+          <option value="osm-standard" selected>OpenStreetMap (기본 표준)</option>
           <option value="carto-dark">Carto Dark (다크 테마)</option>
-          <option value="osm-standard">OpenStreetMap Standard</option>
           <option value="carto-light">Carto Positron (라이트)</option>
           <option value="opentopo">OpenTopoMap (등고선/지형)</option>
         </select>
+        <button class="btn btn-outline" id="toggleMapAddModeBtn" style="padding: 4px 10px; font-size: 0.78rem;" title="클릭 시 지도 클릭으로 포인트를 직접 추가할 수 있습니다">
+          <i class="fa-solid fa-map-pin"></i> 지도 클릭 추가
+        </button>
         <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-main); cursor: pointer; user-select: none;">
           <input type="checkbox" id="toggleOrigPathCheckbox" checked>
           <span>원본 경로 표시</span>
         </label>
+      </div>
+
+      <!-- Map Tile Error Banner -->
+      <div id="mapTileErrorBanner" style="display: none; position: absolute; top: 54px; left: 14px; z-index: 450; background: rgba(220, 38, 38, 0.95); color: #fff; font-size: 0.76rem; padding: 6px 12px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); align-items: center; gap: 8px;">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>지도 타일 로딩 실패: 네트워크를 확인하거나 상단 메뉴에서 다른 지도 레이어를 선택하세요.</span>
       </div>
 
       <!-- Map Div -->
@@ -809,11 +869,11 @@
       <div class="map-legend">
         <div class="legend-item" id="legendOrigItem">
           <div class="legend-line orig"></div>
-          <span>원본 경로 (보라 점선)</span>
+          <span>원본 경로 (회색 점선)</span>
         </div>
         <div class="legend-item">
           <div class="legend-line mod"></div>
-          <span>수정 경로 (에메랄드)</span>
+          <span>수정 경로 (녹색 실선)</span>
         </div>
         <div class="legend-item" id="legendPreviewItem" style="display: none;">
           <div class="legend-line match-preview"></div>
@@ -891,7 +951,8 @@
       currentMode: 'select', // 'select' | 'road-snap' | 'reconnect'
       isDragging: false,
       isTrailCourse: false, // 트레일 코스 감지 플래그
-      mapTileLayer: null
+      mapTileLayer: null,
+      mapAddPointMode: false // 지도 클릭으로 포인트 추가 모드 플래그
     };
 
     // --- Haversine 거리 계산 함수 ---
@@ -1026,41 +1087,61 @@
       attributionControl: true
     }).setView([37.5665, 126.9780], 12);
 
-    // 타일 레이어 사전
+    // 타일 레이어 사전 (Leaflet 1.9.4 기반)
     const tileLayers = {
+      'osm-standard': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }),
       'carto-dark': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19
       }),
-      'osm-standard': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19
-      }),
       'carto-light': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19
       }),
       'opentopo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors, SRTM | Map style: &copy; <a href="https://opentopomap.org" target="_blank" rel="noopener noreferrer">OpenTopoMap</a> (CC-BY-SA)',
         maxZoom: 17
       })
     };
 
-    state.mapTileLayer = tileLayers['carto-dark'].addTo(map);
+    // 타일 로딩 오류 감지 및 상태 안내
+    let lastTileErrorTime = 0;
+    function attachTileErrorHandler(layer) {
+      layer.on('tileerror', function() {
+        const now = Date.now();
+        if (now - lastTileErrorTime > 10000) { // 10초 스로틀
+          lastTileErrorTime = now;
+          const banner = document.getElementById('mapTileErrorBanner');
+          if (banner) {
+            banner.style.display = 'flex';
+            setTimeout(() => { banner.style.display = 'none'; }, 6000);
+          }
+          showToast("지도 타일 로딩 실패: 네트워크 상태를 확인하거나 상단 레이어에서 다른 지도를 선택하세요.", "warning");
+        }
+      });
+    }
+    Object.values(tileLayers).forEach(layer => attachTileErrorHandler(layer));
+
+    // 기본 레이어: OpenStreetMap (표준)
+    state.mapTileLayer = tileLayers['osm-standard'].addTo(map);
 
     document.getElementById('mapLayerSelect').addEventListener('change', (e) => {
       map.removeLayer(state.mapTileLayer);
-      state.mapTileLayer = tileLayers[e.target.value].addTo(map);
+      const selected = tileLayers[e.target.value] || tileLayers['osm-standard'];
+      state.mapTileLayer = selected.addTo(map);
     });
 
-    // 지도 상 경로 레이어 그룹
+    // 지도 상 경로 레이어 그룹 (원본: 회색 점선, 수정본: 녹색 실선)
     const origPathLayer = L.polyline([], {
-      color: '#a855f7',
+      color: '#9ca3af',
       weight: 3,
-      opacity: 0.6,
-      dashArray: '5, 8'
+      opacity: 0.85,
+      dashArray: '6, 8'
     }).addTo(map);
 
     const modPathLayer = L.polyline([], {
@@ -1412,21 +1493,27 @@
         const startPt = state.currentPoints[0];
         const endPt = state.currentPoints[state.currentPoints.length - 1];
 
-        L.circleMarker([startPt.lat, startPt.lon], {
-          radius: 8,
-          color: '#ffffff',
-          fillColor: '#10b981',
-          fillOpacity: 1,
-          weight: 2
-        }).bindTooltip("출발점 (Start)").addTo(markersLayer);
+        // 출발점 (Start) 전용 뱃지 마커
+        L.marker([startPt.lat, startPt.lon], {
+          icon: L.divIcon({
+            className: 'route-terminal-marker start',
+            html: `<div style="background:#10b981; color:#ffffff; font-size:11px; font-weight:800; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2.5px solid #ffffff; box-shadow:0 3px 8px rgba(0,0,0,0.5);">S</div>`,
+            iconSize: [26, 26],
+            iconAnchor: [13, 13]
+          }),
+          zIndexOffset: 1000
+        }).bindTooltip("출발점 (Start: #1)", { direction: 'top', offset: [0, -12] }).addTo(markersLayer);
 
-        L.circleMarker([endPt.lat, endPt.lon], {
-          radius: 8,
-          color: '#ffffff',
-          fillColor: '#ef4444',
-          fillOpacity: 1,
-          weight: 2
-        }).bindTooltip("도착점 (Finish)").addTo(markersLayer);
+        // 도착점 (Finish) 전용 뱃지 마커
+        L.marker([endPt.lat, endPt.lon], {
+          icon: L.divIcon({
+            className: 'route-terminal-marker end',
+            html: `<div style="background:#ef4444; color:#ffffff; font-size:11px; font-weight:800; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2.5px solid #ffffff; box-shadow:0 3px 8px rgba(0,0,0,0.5);">F</div>`,
+            iconSize: [26, 26],
+            iconAnchor: [13, 13]
+          }),
+          zIndexOffset: 999
+        }).bindTooltip(`도착점 (Finish: #${state.currentPoints.length})`, { direction: 'top', offset: [0, -12] }).addTo(markersLayer);
       }
 
       // 선택된 포인트 드래그 마커
@@ -1436,10 +1523,11 @@
           draggable: true,
           icon: L.divIcon({
             className: 'custom-drag-marker',
-            html: `<div style="background: #38bdf8; width: 16px; height: 16px; border-radius: 50%; border: 3px solid #ffffff; box-shadow: 0 0 10px rgba(56,189,248,0.8);"></div>`,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8]
-          })
+            html: `<div style="background: #38bdf8; width: 18px; height: 18px; border-radius: 50%; border: 3px solid #ffffff; box-shadow: 0 0 12px rgba(56,189,248,0.9);"></div>`,
+            iconSize: [18, 18],
+            iconAnchor: [9, 9]
+          }),
+          zIndexOffset: 1500
         }).addTo(markersLayer);
 
         editMarker.on('dragstart', () => { state.isDragging = true; });
@@ -1463,9 +1551,9 @@
       if (state.rangeStart !== null && state.currentPoints[state.rangeStart]) {
         const pA = state.currentPoints[state.rangeStart];
         L.circleMarker([pA.lat, pA.lon], {
-          radius: 6,
-          color: '#f59e0b',
-          fillColor: '#d97706',
+          radius: 7,
+          color: '#ffffff',
+          fillColor: '#f59e0b',
           fillOpacity: 1,
           weight: 2
         }).bindTooltip(`구간 시작점 (A: #${state.rangeStart + 1})`).addTo(markersLayer);
@@ -1474,8 +1562,8 @@
       if (state.rangeEnd !== null && state.currentPoints[state.rangeEnd]) {
         const pB = state.currentPoints[state.rangeEnd];
         L.circleMarker([pB.lat, pB.lon], {
-          radius: 6,
-          color: '#f59e0b',
+          radius: 7,
+          color: '#ffffff',
           fillColor: '#b45309',
           fillOpacity: 1,
           weight: 2
@@ -1483,13 +1571,63 @@
       }
     }
 
-    // 지도 상 클릭 이벤트: 가장 가까운 경로 포인트 선택
+    // 지도 상 클릭 이벤트: 지도 클릭 포인트 추가 모드 or 가장 가까운 포인트 선택
     map.on('click', (e) => {
-      if (state.currentPoints.length === 0 || state.isDragging) return;
+      if (state.isDragging) return;
 
       const clickLat = e.latlng.lat;
       const clickLon = e.latlng.lng;
 
+      // 1. 지도 클릭 포인트 추가 모드 활성화 시
+      if (state.mapAddPointMode) {
+        if (state.currentPoints.length === 0) {
+          const newPt = {
+            lat: clickLat,
+            lon: clickLon,
+            ele: 0,
+            time: new Date().toISOString(),
+            trkIdx: 0,
+            segIdx: 0
+          };
+          pushHistory("지도 클릭으로 첫 포인트 생성");
+          state.currentPoints = [newPt];
+          state.originalPoints = [JSON.parse(JSON.stringify(newPt))];
+          selectPoint(0);
+          renderAll();
+          showToast("지도 클릭 지점에 새 포인트(#1)가 생성되었습니다.");
+          return;
+        }
+
+        // 삽입 위치 결정: 현재 선택된 포인트 바로 뒤, 또는 경로 끝
+        const insertIdx = state.selectedIndex !== null ? state.selectedIndex + 1 : state.currentPoints.length;
+        
+        // 고도 결정: 인접 포인트 고도 선형 참조
+        let refEle = 0;
+        if (state.selectedIndex !== null && state.currentPoints[state.selectedIndex]) {
+          refEle = state.currentPoints[state.selectedIndex].ele ?? 0;
+        } else if (state.currentPoints.length > 0) {
+          refEle = state.currentPoints[state.currentPoints.length - 1].ele ?? 0;
+        }
+
+        const newPt = {
+          lat: clickLat,
+          lon: clickLon,
+          ele: refEle,
+          time: new Date().toISOString(),
+          trkIdx: 0,
+          segIdx: 0
+        };
+
+        pushHistory(`지도 클릭으로 새 포인트(#${insertIdx + 1}) 추가`);
+        state.currentPoints.splice(insertIdx, 0, newPt);
+        selectPoint(insertIdx);
+        renderAll();
+        showToast(`지도 클릭 위치에 새 포인트(#${insertIdx + 1})가 추가되었습니다.`);
+        return;
+      }
+
+      // 2. 일반 선택 모드: 반경 100m 이내 가장 가까운 포인트 선택
+      if (state.currentPoints.length === 0) return;
       let nearestIdx = 0;
       let minDist = Infinity;
 
@@ -1501,7 +1639,6 @@
         }
       });
 
-      // 반경 100m 이내 클릭 시에만 해당 포인트 선택
       if (minDist < 100) {
         selectPoint(nearestIdx);
       }
@@ -1616,6 +1753,24 @@
       state.previewPoints = null;
       renderAll();
       showToast("최초 원본 경로로 복원되었습니다.", "info");
+    });
+
+    // 지도 클릭 포인트 추가 모드 토글
+    const mapAddBtn = document.getElementById('toggleMapAddModeBtn');
+    mapAddBtn.addEventListener('click', () => {
+      state.mapAddPointMode = !state.mapAddPointMode;
+      const mapEl = document.getElementById('map');
+      if (state.mapAddPointMode) {
+        mapAddBtn.classList.remove('btn-outline');
+        mapAddBtn.classList.add('btn-primary');
+        mapEl.classList.add('add-point-mode');
+        showToast("지도 클릭 포인트 추가 모드가 켜졌습니다. 지도를 클릭하면 해당 위치에 포인트가 생성됩니다.", "info");
+      } else {
+        mapAddBtn.classList.remove('btn-primary');
+        mapAddBtn.classList.add('btn-outline');
+        mapEl.classList.remove('add-point-mode');
+        showToast("일반 선택 모드로 전환되었습니다.");
+      }
     });
 
     // 구간 선택 버튼 핸들러
